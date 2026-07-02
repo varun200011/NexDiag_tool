@@ -34,7 +34,6 @@ body {
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  padding-bottom: 90px;
 }
 
 /* ── GRID BACKGROUND ─────────────────────────────────────── */
@@ -373,13 +372,11 @@ section { position: relative; z-index: 10; }
 
 /* ── FOOTER ───────────────────────────────────────────────── */
 footer {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  z-index: 100;
+  position: relative; z-index: 10;
   border-top: 1px solid var(--rule);
-  padding: 18px 32px;
+  padding: 28px 32px;
   display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 12px; background: rgba(255,255,255,0.96);
-  backdrop-filter: blur(10px);
+  flex-wrap: wrap; gap: 12px; background: var(--white);
 }
 .footer-left { display: flex; align-items: center; gap: 20px; }
 .footer-logo {
