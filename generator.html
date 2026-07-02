@@ -1,0 +1,2810 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NexDiag — CAPL UDS Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--e:cubic-bezier(.16,1,.3,1);}
+[data-theme="dark"]{
+  --bg:#111113;--bg1:#18181b;--bg2:#1c1c1f;--bg3:#222225;
+  --bdr:#2a2a2e;--bdr2:#3a3a3e;
+  --t1:#e0e6f6;--t2:#52607a;--t3:#2a3348;
+  --a1:#3b82f6;--a2:#06b6d4;--a3:#10b981;--a4:#f59e0b;--a5:#ef4444;
+  --glo:rgba(59,130,246,.18);
+}
+[data-theme="light"]{
+  --bg:#f6f8ff;--bg1:#eef1ff;--bg2:#ffffff;--bg3:#e8ecf8;
+  --bdr:#d0d8f0;--bdr2:#b8c4e0;
+  --t1:#0c1628;--t2:#3d5278;--t3:#9aaccc;
+  --a1:#2563eb;--a2:#0891b2;--a3:#059669;--a4:#d97706;--a5:#dc2626;
+  --glo:rgba(37,99,235,.1);
+}
+/* ── HOME: light theme overrides ── */
+[data-theme="light"] .htop{
+  background:rgba(255,255,255,.82)!important;
+  border-bottom-color:rgba(0,0,0,.1)!important;
+}
+[data-theme="light"] .hlogo{color:#0c1628!important}
+[data-theme="light"] .hlogo span{color:#d97706!important}
+[data-theme="light"] #home::before{
+  background:rgba(255,255,255,.55)!important;
+}
+[data-theme="light"] .htitle{
+  color:#0c1628!important;
+  text-shadow:2px 4px 0 rgba(255,255,255,.4)!important;
+}
+[data-theme="light"] .htitle .blue{color:#d97706!important}
+[data-theme="light"] .hsub{color:rgba(12,22,40,.7)!important}
+[data-theme="light"] .hcta{
+  color:#d97706!important;
+  border-color:#d97706!important;
+}
+[data-theme="light"] .hcta::after{border-color:rgba(217,119,6,.3)!important}
+[data-theme="light"] .hcta:hover{background:#d97706!important;color:#fff!important}
+[data-theme="light"] .footer{
+  background:rgba(255,255,255,.82)!important;
+  border-top-color:rgba(0,0,0,.1)!important;
+}
+[data-theme="light"] .footer span{color:rgba(12,22,40,.5)!important}
+[data-theme="light"] #hthbtn{
+  background:rgba(255,255,255,.9)!important;
+  border-color:rgba(0,0,0,.15)!important;
+  color:#0c1628!important;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Rajdhani",sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden;transition:background .3s,color .3s}
+@keyframes fdup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ─── SPLASH ─────────────────────────────────────────────────── */
+#sp{position:fixed;inset:0;z-index:900;background:#000;overflow:hidden}
+#sp canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#sp.done{animation:splout .6s var(--e) forwards;pointer-events:none}
+@keyframes splout{to{opacity:0;pointer-events:none}}
+.sp-ui{position:absolute;bottom:0;left:0;right:0;padding:28px 36px;
+  background:linear-gradient(transparent,rgba(0,0,0,.8));z-index:10;pointer-events:none}
+.sp-tag{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.22em;
+  color:rgba(6,182,212,.75);text-transform:uppercase;margin-bottom:7px;
+  opacity:0;animation:fdup .5s var(--e) .5s both}
+.sp-ttl{font-size:clamp(1.6rem,4vw,2.8rem);font-weight:700;color:#fff;letter-spacing:.04em;
+  opacity:0;animation:fdup .6s var(--e) .8s both}
+.sp-ttl em{color:#06b6d4;font-style:normal}
+.sp-skip{position:absolute;top:18px;right:22px;z-index:20;font-family:"JetBrains Mono",monospace;
+  font-size:10px;letter-spacing:.12em;color:rgba(255,255,255,.3);cursor:pointer;
+  text-transform:uppercase;padding:8px 12px;border:1px solid rgba(255,255,255,.1);
+  border-radius:5px;transition:all .2s}
+.sp-skip:hover{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.3)}
+
+/* ─── HOME ───────────────────────────────────────────────────── */
+#home{display:none;min-height:100vh;flex-direction:column}
+#home.show{display:flex;animation:fdup .5s var(--e)}
+.htop{position:fixed;top:0;left:0;right:0;height:52px;z-index:50;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+  border-bottom:1px solid rgba(245,184,46,.2);
+  display:flex;align-items:center;padding:0 24px;gap:14px}
+.hlogo{font-family:'Big Shoulders Display',sans-serif;font-size:17px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#f5f0e8}
+.hlogo span{color:#f5b82e}
+.hright{margin-left:auto}
+.tbtn{width:36px;height:36px;border:1px solid var(--bdr2);background:var(--bg2);border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;
+  color:var(--t1);transition:all .2s}
+.tbtn:hover{border-color:var(--a2);transform:scale(1.06)}
+.hhero{
+  flex:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:52px 20px 80px;text-align:center;
+  position:relative;
+}
+/* Retro background image fill */
+#home{
+  background-image:url('bg.jpg');
+  background-size:cover;
+  background-position:center;
+  position:relative;
+}
+#home::before{
+  content:'';position:absolute;inset:0;z-index:0;
+  background:rgba(0,0,0,.62);
+}
+.htop,.hhero,.footer{position:relative;z-index:1}
+/* Hide the badge entirely */
+.hbadge{display:none!important}
+.pulse{display:none}
+/* Retro title */
+.htitle{
+  font-family:'Big Shoulders Display',sans-serif;
+  font-size:clamp(4rem,12vw,9rem);
+  font-weight:900;
+  line-height:.88;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#f5f0e8;
+  text-shadow:2px 4px 0 rgba(0,0,0,.4);
+  margin-bottom:20px;
+}
+.htitle .blue{
+  color:#f5b82e;
+  display:block;
+}
+/* Retro subtitle */
+.hsub{
+  font-family:'Special Elite',monospace;
+  font-size:13px;
+  letter-spacing:.08em;
+  color:rgba(245,240,232,.65);
+  line-height:2;
+  margin-bottom:36px;
+  max-width:420px;
+}
+/* Retro CTA button */
+.hcta{
+  display:inline-flex;align-items:center;gap:12px;
+  background:transparent;
+  color:#f5b82e;
+  border:2px solid #f5b82e;
+  border-radius:0;
+  padding:14px 40px;
+  font-family:'Big Shoulders Display',sans-serif;
+  font-size:17px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;
+  position:relative;
+}
+.hcta::after{
+  content:'';position:absolute;inset:3px;border:1px solid rgba(245,184,46,.3);
+}
+.hcta:hover{background:#f5b82e;color:#0a0a0a;box-shadow:0 0 30px rgba(245,184,46,.3)}
+.hcta .arr{transition:transform .2s;font-size:18px}
+.hcta:hover .arr{transform:translateX(6px)}
+.footer{position:fixed;bottom:0;left:0;right:0;height:38px;
+  border-top:1px solid rgba(245,184,46,.2);
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;z-index:50}
+.footer span{font-family:'Special Elite',monospace;font-size:10px;letter-spacing:.12em;color:rgba(245,240,232,.45)}
+
+/* ─── APP ────────────────────────────────────────────────────── */
+#app{display:none;min-height:100vh;flex-direction:column;perspective:1200px}
+#app.show{display:flex;animation:fdup .35s var(--e)}
+.topbar{position:fixed;top:0;left:0;right:0;height:52px;z-index:100;background:var(--bg);
+  border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:14px}
+.tl{font-size:14px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t1)}
+.tl span{color:var(--a2)}
+.tsep{width:1px;height:18px;background:var(--bdr2)}
+.tstep{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--t2);letter-spacing:.05em}
+.tright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.ib{width:34px;height:34px;border:1px solid var(--bdr2);background:var(--bg2);border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;
+  color:var(--t1);transition:all .18s}
+.ib:hover{border-color:var(--a2);transform:scale(1.06)}
+.tbprog{position:absolute;bottom:0;left:0;height:2px;background:linear-gradient(90deg,var(--a1),var(--a2));
+  transition:width .4s var(--e)}
+.sidebar{position:fixed;top:52px;left:0;bottom:38px;width:196px;background:var(--bg1);
+  border-right:1px solid var(--bdr);z-index:50;display:flex;flex-direction:column;padding:12px 0}
+.ni{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;font-size:13px;
+  font-weight:600;color:var(--t2);border-left:2px solid transparent;transition:all .16s;
+  letter-spacing:.04em;text-transform:uppercase}
+.ni:hover{color:var(--t1);background:var(--bg2)}
+.ni.on{color:var(--a2);border-left-color:var(--a2);background:rgba(6,182,212,.05)}
+.ni.done{color:var(--a3)}
+.ni.done::after{content:"✓";margin-left:auto;font-size:11px}
+.nn{width:20px;height:20px;border-radius:5px;border:1.5px solid currentColor;
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;
+  font-family:"JetBrains Mono",monospace;flex-shrink:0}
+.ni.on .nn{background:var(--a2);border-color:var(--a2);color:#000}
+.ni.done .nn{background:var(--a3);border-color:var(--a3);color:#fff}
+.sbproj{margin-top:auto;padding:14px 18px;border-top:1px solid var(--bdr);
+  font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.06em}
+.sbpv{color:var(--a2);display:block;font-size:11px;font-weight:700;margin-top:3px}
+.main{margin-left:196px;margin-top:52px;margin-bottom:38px;flex:1;padding:26px 28px;max-width:900px}
+.sec{display:none;transform-style:preserve-3d;will-change:transform,opacity}
+.sec.animating{display:block}.sec.on{display:block}
+.sechd{margin-bottom:20px}
+.sechd h2{font-size:1.5rem;font-weight:700;letter-spacing:.02em;text-transform:uppercase}
+.sechd p{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--t2);margin-top:5px;letter-spacing:.06em}
+.card{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:20px;margin-bottom:14px;transition:border-color .18s}
+.card:hover{border-color:var(--bdr2)}
+.ct{font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--t2);margin-bottom:16px;display:flex;align-items:center;gap:7px}
+.ct::before{content:"";width:14px;height:2px;background:var(--a2);border-radius:1px}
+.g1{margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.fld label{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase}
+.sub{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t3);margin-top:3px}
+input,select,textarea{background:var(--bg3);border:1px solid var(--bdr2);border-radius:7px;color:var(--t1);
+  font-family:"Rajdhani",sans-serif;font-size:14px;padding:9px 12px;width:100%;outline:none;
+  transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--a2);box-shadow:0 0 0 2px rgba(6,182,212,.1)}
+input::placeholder{color:var(--t3)}
+select option{background:var(--bg2)}
+textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;font-size:11px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;cursor:pointer;
+  font-family:"Rajdhani",sans-serif;font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid var(--bdr2);background:transparent;color:var(--t2);transition:all .16s}
+.btn:hover{border-color:var(--a2);color:var(--a2);background:rgba(6,182,212,.04)}
+.btn-p{background:var(--a1);border-color:var(--a1);color:#fff}
+.btn-p:hover{background:#2563eb;border-color:#2563eb;box-shadow:0 4px 16px var(--glo);transform:translateY(-1px)}
+.btn-g{background:var(--a3);border-color:var(--a3);color:#fff}
+.btn-g:hover{background:#047857;box-shadow:0 4px 14px rgba(16,185,129,.3);transform:translateY(-1px)}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:6px}
+.btn-x{color:var(--a5);border-color:transparent}
+.btn-x:hover{background:rgba(239,68,68,.08);border-color:var(--a5)}
+.nr{display:flex;justify-content:space-between;align-items:center;margin-top:20px}
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.ao{border:1.5px solid var(--bdr2);border-radius:9px;padding:14px;cursor:pointer;transition:all .18s;background:var(--bg3)}
+.ao:hover{border-color:var(--a2)}.ao.on{border-color:var(--a2);background:rgba(6,182,212,.04)}
+.albl{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:7px}
+.adsc{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.05em}
+.adet{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--bdr)}
+.ao.on .adet{display:block}
+.did-scroll{overflow-x:auto;border:1px solid var(--bdr);border-radius:8px}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th{background:var(--bg3);padding:10px;text-align:left;font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--bdr);white-space:nowrap}
+.dtbl td{padding:7px 8px;border-bottom:1px solid var(--bdr);vertical-align:middle}
+.dtbl tr:last-child td{border-bottom:none}
+.dtbl tr:hover td{background:rgba(6,182,212,.02)}
+.dtbl input,.dtbl select{padding:5px 8px;font-size:11px;border-radius:5px}
+.scbs{display:flex;flex-wrap:wrap;gap:4px}
+.scbs label{display:inline-flex;align-items:center;gap:4px;font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);cursor:pointer;padding:3px 8px;border:1px solid var(--bdr2);border-radius:5px;transition:all .13s;letter-spacing:.04em}
+.scbs label:hover{border-color:var(--a2);color:var(--a2)}
+.scbs input{width:auto;padding:0;border:none;background:none;width:11px;height:11px;accent-color:var(--a2)}
+.uzone{border:1.5px dashed var(--bdr2);border-radius:10px;padding:38px 20px;text-align:center;cursor:pointer;transition:all .22s;position:relative;background:var(--bg3)}
+.uzone:hover,.uzone.dg{border-color:var(--a2);background:rgba(6,182,212,.03)}
+.uzone input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.uico{font-size:36px;display:block;margin-bottom:10px}
+.utit{font-size:16px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px}
+.usub{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--t2);letter-spacing:.06em}
+.upw{height:2px;background:var(--bdr);border-radius:1px;margin-top:12px;overflow:hidden}
+.upr{height:100%;width:0;background:linear-gradient(90deg,var(--a1),var(--a2));transition:width .1s}
+.spills{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.spill{padding:5px 14px;border-radius:20px;font-family:"JetBrains Mono",monospace;font-size:10px;cursor:pointer;border:1px solid var(--bdr2);color:var(--t2);transition:all .15s;letter-spacing:.06em;text-transform:uppercase}
+.spill:hover{border-color:var(--a2);color:var(--a2)}
+.spill.on{background:var(--a2);border-color:var(--a2);color:#000;font-weight:700}
+.cmap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cmr{display:flex;align-items:center;gap:10px}
+.cmr label{flex:1;font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.1em}
+.cmr select{flex:1.5;font-size:11px}
+.pvwrap{max-height:190px;overflow-y:auto;border:1px solid var(--bdr);border-radius:7px;margin-top:12px}
+.pvtbl{width:100%;border-collapse:collapse;font-size:10px;font-family:"JetBrains Mono",monospace}
+.pvtbl th{background:var(--bg3);padding:7px 10px;text-align:left;color:var(--t2);font-size:9px;border-bottom:1px solid var(--bdr);position:sticky;top:0;letter-spacing:.06em;text-transform:uppercase}
+.pvtbl td{padding:5px 10px;border-bottom:1px solid var(--bdr);color:var(--t2)}
+.pvtbl tr:nth-child(even) td{background:var(--bg3)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.stat{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;top:0;left:0;right:0;height:2px}
+.stat:nth-child(1)::after{background:var(--a1)}.stat:nth-child(2)::after{background:var(--a2)}.stat:nth-child(3)::after{background:var(--a3)}
+.sl{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+.sv{font-size:2.5rem;font-weight:700;font-family:"JetBrains Mono",monospace;letter-spacing:-.02em}
+.sv1{color:var(--a1)}.sv2{color:var(--a2)}.sv3{color:var(--a3)}
+.tabs{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:16px}
+.tab{padding:8px 18px;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab:hover{color:var(--t1)}.tab.on{color:var(--a2);border-bottom-color:var(--a2)}
+.tpane{display:none}.tpane.on{display:block}
+.obox{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:14px;font-family:"JetBrains Mono",monospace;font-size:10.5px;line-height:1.8;overflow-x:auto;white-space:pre;max-height:360px;overflow-y:auto;color:var(--t2)}
+.oa{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.toast{position:fixed;bottom:50px;right:24px;background:var(--bg2);border:1px solid var(--bdr2);border-radius:9px;padding:11px 18px;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.06em;color:var(--t1);opacity:0;transform:translateY(8px);transition:all .22s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:none}
+.toast.ok{border-color:var(--a3);color:var(--a3)}.toast.info{border-color:var(--a2);color:var(--a2)}.toast.err{border-color:var(--a5);color:var(--a5)}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+
+/* ── 3D PAGE TRANSITIONS ─────────────────────────────── */
+.page-exit {
+  animation: pageExit3D 0.45s cubic-bezier(.55,0,.45,1) forwards;
+}
+.page-enter {
+  animation: pageEnter3D 0.45s cubic-bezier(.55,0,.45,1) forwards;
+}
+@keyframes pageExit3D {
+  0%   { opacity:1; transform: perspective(1200px) rotateY(0deg) scale(1); }
+  100% { opacity:0; transform: perspective(1200px) rotateY(-12deg) scale(0.94) translateX(-40px); }
+}
+@keyframes pageEnter3D {
+  0%   { opacity:0; transform: perspective(1200px) rotateY(12deg) scale(0.94) translateX(40px); }
+  100% { opacity:1; transform: perspective(1200px) rotateY(0deg) scale(1); }
+}
+/* ── STEP 3D TRANSITIONS ── */
+@keyframes stepExitLeft {
+  0%   { opacity:1; transform:perspective(900px) rotateY(0deg) translateX(0) scale(1); }
+  100% { opacity:0; transform:perspective(900px) rotateY(-18deg) translateX(-60px) scale(.92); }
+}
+@keyframes stepExitRight {
+  0%   { opacity:1; transform:perspective(900px) rotateY(0deg) translateX(0) scale(1); }
+  100% { opacity:0; transform:perspective(900px) rotateY(18deg) translateX(60px) scale(.92); }
+}
+@keyframes stepEnterRight {
+  0%   { opacity:0; transform:perspective(900px) rotateY(18deg) translateX(60px) scale(.92); }
+  100% { opacity:1; transform:perspective(900px) rotateY(0deg) translateX(0) scale(1); }
+}
+@keyframes stepEnterLeft {
+  0%   { opacity:0; transform:perspective(900px) rotateY(-18deg) translateX(-60px) scale(.92); }
+  100% { opacity:1; transform:perspective(900px) rotateY(0deg) translateX(0) scale(1); }
+}
+.step-exit-left  { animation:stepExitLeft  .35s cubic-bezier(.4,0,.6,1) forwards; }
+.step-exit-right { animation:stepExitRight .35s cubic-bezier(.4,0,.6,1) forwards; }
+.step-enter-right{ animation:stepEnterRight .38s cubic-bezier(.2,.8,.3,1) forwards; }
+.step-enter-left { animation:stepEnterLeft  .38s cubic-bezier(.2,.8,.3,1) forwards; }
+#home, #app {
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="sp">
+  <canvas id="spCv"></canvas>
+  <div class="sp-ui">
+    <div class="sp-tag">Visteon Technology Centre India</div>
+    <div class="sp-ttl">Diag<em>CAPL</em> Generator</div>
+  </div>
+  <div class="sp-skip" onclick="skipSplash()">Skip ›</div>
+</div>
+
+<!-- HOME -->
+<div id="home">
+  <header class="htop">
+    <a href="index.html" class="hlogo" style="text-decoration:none">Nex<span>Diag</span></a>
+    <div class="hright"><button class="tbtn" id="hthbtn" onclick="toggleTheme()">🌙</button></div>
+  </header>
+  <div class="hhero">
+    <h1 class="htitle">Nex<span>Diag</span><span class="blue">Generator</span></h1>
+    <p class="hsub">Generate compile-ready CAPL UDS test suites<br>from your SRD sheet — in minutes.</p>
+    <button class="hcta" onclick="openApp()">Get Started <span class="arr">→</span></button>
+  </div>
+  <footer class="footer"><span>© 2026 Visteon · NexDiag</span></footer>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="topbar">
+    <a href="index.html" class="tl" style="text-decoration:none">Nex<span>Diag</span></a>
+    <div class="tsep"></div>
+    <span class="tstep" id="tbstep">01/06 · Project</span>
+    <div class="tright"><button class="ib" id="thbtn" onclick="toggleTheme()">🌙</button></div>
+    <div class="tbprog" id="tbprog" style="width:16%"></div>
+  </header>
+  <nav class="sidebar">
+    <div class="ni on" onclick="go(0)"><div class="nn">1</div>Project</div>
+    <div class="ni"    onclick="go(1)"><div class="nn">2</div>CAN IDs</div>
+    <div class="ni"    onclick="go(2)"><div class="nn">3</div>Sessions</div>
+    <div class="ni"    onclick="go(3)"><div class="nn">4</div>Security</div>
+    <div class="ni"    onclick="go(4)"><div class="nn">5</div>DIDs</div>
+    <div class="ni"    onclick="go(5)"><div class="nn">6</div>Export</div>
+    <div class="sbproj">Project<span class="sbpv" id="sbpv">—</span></div>
+  </nav>
+  <main class="main">
+    <div id="s0" class="sec on">
+      <div class="sechd"><h2>Project Info</h2><p>// identify the ECU project and assign metadata</p></div>
+      <div class="card"><div class="ct">Project details</div>
+        <div class="g2">
+          <div class="fld"><label>Project name</label><input id="pName" placeholder="e.g. RE_P3F2" oninput="document.getElementById('sbpv').textContent=this.value||'—'"></div>
+          <div class="fld"><label>Vehicle brand</label><select id="pBrand"><option>Royal Enfield</option><option>TVS</option><option>Honda</option><option>Bajaj</option><option>Hero</option><option>Other</option></select></div>
+        </div>
+        <div class="g2">
+          <div class="fld"><label>ECU / Cluster variant</label><input id="pEcu" placeholder="e.g. Instrument Cluster P3F2"></div>
+          <div class="fld"><label>Engineer name</label><input id="pEng" placeholder="e.g. Varun Nataraj"></div>
+        </div>
+      </div>
+      <div class="nr"><span></span><button class="btn btn-p" onclick="go(1)">Next →</button></div>
+    </div>
+    <div id="s1" class="sec">
+      <div class="sechd"><h2>CAN IDs</h2><p>// physical message IDs for tester ↔ ECU</p></div>
+      <div class="card"><div class="ct">CAN bus</div>
+        <div class="g3">
+          <div class="fld"><label>Channel</label><select id="canCh"><option>CAN1</option><option>CAN2</option><option>CAN3</option></select></div>
+          <div class="fld"><label>Tx ID</label><input id="txId" placeholder="0x7F6"><div class="sub">// tester → ECU</div></div>
+          <div class="fld"><label>Rx ID</label><input id="rxId" placeholder="0x7FE"><div class="sub">// ECU → tester</div></div>
+        </div>
+      </div>
+      <div class="nr"><button class="btn" onclick="go(0)">← Back</button><button class="btn btn-p" onclick="go(2)">Next →</button></div>
+    </div>
+    <div id="s2" class="sec">
+      <div class="sechd"><h2>Sessions</h2><p>// UDS session subfunction values</p></div>
+      <div class="card"><div class="ct">Session IDs</div>
+        <div class="g3">
+          <div class="fld"><label>Default</label><input id="ssDef" value="0x01"></div>
+          <div class="fld"><label>Extended</label><input id="ssExt" value="0x03"></div>
+          <div class="fld"><label>Programming</label><input id="ssProg" value="0x02"></div>
+        </div>
+        <div class="g1"><div class="fld"><label>EOL / OEM <span style="font-weight:400;text-transform:none;letter-spacing:0">(blank = not used)</span></label><input id="ssEol" placeholder="e.g. 0x60" oninput="onEolSessChange()"></div></div>
+        <div id="eolEntrySection" style="display:none;margin-top:10px;padding:12px;border:1px solid var(--bdr2);border-radius:8px;background:var(--bg3)">
+          <div class="ct">EOL entry sequence <span style="color:var(--t3);font-size:10px">(run once before all EOL DID tests)</span></div>
+          <div class="g2">
+            <div class="fld"><label>EOL activation DID (2E write)</label><input id="eolActDid" placeholder="0xFD60" oninput="updateEolPreview()"></div>
+            <div class="fld"><label>EOL activation value</label><input id="eolActVal" placeholder="0x01" oninput="updateEolPreview()"></div>
+          </div>
+          <div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2);margin-top:6px">Sequence: 10 03 → 10 60 → 27 61 seed → 27 62 key → 2E <span id="eolPreviewDid">FD 60</span> <span id="eolPreviewVal">01</span> → 11 01 → 10 03 → 10 60</div>
+        </div>
+      </div>
+      <div class="nr"><button class="btn" onclick="go(1)">← Back</button><button class="btn btn-p" onclick="go(3)">Next →</button></div>
+    </div>
+    <div id="s3" class="sec">
+      <div class="sechd"><h2>Security</h2><p>// seed/key unlock algorithm per level</p></div>
+      <div class="card"><div class="ct">Level 1 — normal unlock</div>
+        <div class="g2" style="margin-bottom:14px">
+          <div class="fld"><label>Seed subfunction (27 XX)</label><input id="s1seed" placeholder="0x01"></div>
+          <div class="fld"><label>Key subfunction (27 XX)</label><input id="s1key" placeholder="0x02"></div>
+        </div>
+        <div class="ag" id="a1g">
+          <div class="ao on" onclick="selAlgo(1,'EXE',this)"><div class="albl">⚙ EXE-based</div><div class="adsc">// calls external .exe, reads key from .bin</div><div class="adet"><div class="fld"><label>EXE path</label><input id="s1exe" placeholder=".\AES_CAPL.exe"><div class="sub">// relative to CANoe dir</div></div></div></div>
+          <div class="ao" onclick="selAlgo(1,'XOR',this)"><div class="albl">ƒ Formula</div><div class="adsc">// key computed inline via arithmetic/XOR</div><div class="adet"><div class="fld"><label>Formula</label><input id="s1form" placeholder="(~seed) + 0x56" oninput="validateFormula(this)">
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">Use <b>~seed</b> for bitwise NOT. Example: <code>(~seed)+0x56</code> or <code>seed^0xFFFF</code></div></div></div></div>
+        </div>
+      </div>
+      <div class="card"><div class="ct">EOL level <span style="text-transform:none;letter-spacing:0;font-size:11px;color:var(--t3)">(optional)</span></div>
+        <div class="g2" style="margin-bottom:14px">
+          <div class="fld"><label>Seed subfunction</label><input id="eolseed" placeholder="0x61"></div>
+          <div class="fld"><label>Key subfunction</label><input id="eolkey" placeholder="0x62"></div>
+        </div>
+        <div class="ag" id="aeg">
+          <div class="ao" onclick="selAlgo('eol','EXE',this)"><div class="albl">⚙ EXE-based</div><div class="adsc">// external keygen exe</div><div class="adet"><div class="fld"><input id="eolexe" placeholder=".\AES_EOL.exe"></div></div></div>
+          <div class="ao on" onclick="selAlgo('eol','XOR',this)"><div class="albl">ƒ Formula</div><div class="adsc">// arithmetic/XOR formula</div><div class="adet"><div class="fld"><input id="eolform" placeholder="(~seed) + 0x56" oninput="validateFormula(this)" onchange="validateFormula(this)">
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">Use <b>~seed</b> (bitwise NOT) not <b>-seed</b> (negation — off by 1).</div>
+          <div style="font-size:9px;color:var(--a2);margin-top:4px">Test: seed=0xC5E8C5E8 → key=<span id="eolKeyPreview">?</span></div></div></div></div>
+        </div>
+      </div>
+      <div class="nr"><button class="btn" onclick="go(2)">← Back</button><button class="btn btn-p" onclick="go(4)">Next →</button></div>
+    </div>
+    <div id="s4" class="sec">
+      <div class="sechd"><h2>DID List</h2><p>// upload SRD Excel or enter DIDs manually</p></div>
+      <div class="card"><div class="ct">SRD Excel import</div>
+        <div class="uzone" id="dz" ondragover="event.preventDefault();this.classList.add('dg')" ondragleave="this.classList.remove('dg')" ondrop="onDrop(event)">
+          <input type="file" accept=".xlsx,.xls,.csv" onchange="onFile(event)">
+          <span class="uico">📊</span>
+          <div class="utit">Drop SRD Excel here</div>
+          <div class="usub">or click to browse · .xlsx · .xls · .csv</div>
+          <div class="upw"><div class="upr" id="uprog"></div></div>
+        </div>
+        <div id="sheetSel" style="display:none;margin-top:14px">
+          <div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px">// select sheet</div>
+          <div class="spills" id="shpills"></div>
+        </div>
+        <div id="colMap" style="display:none;margin-top:16px">
+          <div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">// map columns</div>
+          <div class="cmap">
+            <div class="cmr"><label>DID (hex)</label><select id="mDid"></select></div>
+            <div class="cmr"><label>Name</label><select id="mName"></select></div>
+            <div class="cmr"><label>Data length</label><select id="mLen"></select></div>
+            <div class="cmr"><label>Read sessions</label><select id="mRead"></select></div>
+            <div class="cmr"><label>Write session</label><select id="mWrite"></select></div>
+            <div class="cmr"><label>Security level</label><select id="mSec"></select></div>
+            <div class="cmr"><label>Default value</label><select id="mDef"></select></div>
+            <div class="cmr"><label>Range (min-max)</label><select id="mRange"></select></div>
+            <div class="cmr"><label>I/O Control session</label><select id="mIOCtrl"></select></div>
+            <div class="cmr"><label>Description / Bmap</label><select id="mDesc"></select></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;align-items:center">
+            <button class="btn btn-p btn-sm" onclick="importXL()">↓ Import DIDs</button>
+            <span id="pvinfo" style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2)"></span>
+          </div>
+          <div id="pvarea"></div>
+        </div>
+      </div>
+      <div class="card"><div class="ct">DID table <span id="didcnt" style="color:var(--a2)"></span></div>
+        <div class="did-scroll">
+          <table class="dtbl"><thead><tr>
+            <th>DID</th><th>Name</th><th>Len</th><th>Readable sessions <span style="font-weight:400;color:var(--a4);font-size:9px">(☑ EOL = EOL DID)</span></th>
+            <th>Write sess</th><th>Security</th><th>Default</th><th>Min val</th><th>Max val</th><th>Type / Service</th><th></th>
+          </tr></thead><tbody id="dbody"></tbody></table>
+        </div>
+        <button class="btn btn-sm" style="margin-top:12px" onclick="addRow()">+ Add row</button>
+      </div>
+      <div class="nr"><button class="btn" onclick="go(3)">← Back</button><button class="btn btn-p" onclick="go(5)">Generate →</button></div>
+    </div>
+    <div id="s5" class="sec">
+      <div class="sechd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div><h2>Export</h2><p>// review and download your CAPL test suite</p></div>
+        <a href="https://varun200011.github.io/diva-capl-html-report/" target="_blank"
+           class="btn btn-g" style="text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+           📊 Open Report Tool →
+        </a>
+      </div>
+      <div class="stats" id="statrow"></div>
+      <div class="tabs">
+        <div class="tab on" onclick="stab('json',this)">Config JSON</div>
+        <div class="tab"    onclick="stab('pre',this)">TC Preview</div>
+        <div class="tab"    onclick="stab('capl',this)">CAPL (.can)</div>
+      </div>
+      <div id="tpjson" class="tpane on"><div class="obox" id="outJson">...</div>
+        <div class="oa"><button class="btn btn-sm" onclick="cpOut('outJson')">⧉ Copy</button><button class="btn btn-g btn-sm" onclick="dlJson()">↓ JSON</button></div>
+      </div>
+      <div id="tppre" class="tpane"><div class="obox" id="outPre">...</div></div>
+      <div id="tpcapl" class="tpane"><div class="obox" id="outCapl">...</div>
+        <div class="oa"><button class="btn btn-sm" onclick="cpOut('outCapl')">⧉ Copy</button><button class="btn btn-g btn-sm" onclick="dlCapl()">↓ Download .can</button></div>
+      </div>
+      <div class="nr" style="margin-top:20px">
+        <button class="btn" onclick="go(4)">← Back</button>
+        <button class="btn btn-p" onclick="dlCapl()">↓ Download .can</button>
+      </div>
+    </div>
+  </main>
+  <footer class="footer"><span>© 2026 Visteon · NexDiag</span></footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  SPLASH — full canvas 2D motorcycle + cluster animation
+//  Sequence:
+//   0.0 – 1.5s  Scene fades in. Night highway, stars, city skyline
+//   1.5 – 3.5s  Royal Enfield-style motorcycle rides in from left
+//                wheels spin, headlight on, exhaust particles
+//   3.5 – 4.5s  Camera zooms into cluster (canvas zoom transform)
+//   4.5 – 5.8s  Speedo + tacho needles sweep to max
+//   5.8 – 6.8s  Needles sweep back
+//   6.8 – 7.4s  Fade to black → home
+// ═══════════════════════════════════════════════════════════════
+(function(){
+var cv = document.getElementById('spCv');
+var ctx = cv.getContext('2d');
+var W, H;
+
+function resize(){
+  W = cv.width  = window.innerWidth;
+  H = cv.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── easing helpers ──────────────────────────────────────────
+function eio(t){ return t<.5?2*t*t:-1+(4-2*t)*t; }
+function eout(t){ return 1-(1-t)*(1-t); }
+function ein(t){ return t*t*t; }
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+// ── stars ───────────────────────────────────────────────────
+var stars = [];
+for(var si=0; si<160; si++){
+  stars.push({
+    x: Math.random(),
+    y: Math.random()*0.55,
+    r: Math.random()*1.2+0.3,
+    tw: Math.random()*Math.PI*2
+  });
+}
+
+// ── city skyline silhouette ─────────────────────────────────
+var buildings = [];
+var bx = 0;
+while(bx < 1.0){
+  var bw = 0.025 + Math.random()*0.045;
+  var bh = 0.08  + Math.random()*0.20;
+  buildings.push({x:bx, w:bw, h:bh});
+  bx += bw + 0.004;
+}
+
+// ── road markings ────────────────────────────────────────────
+var roadStripes = [];
+for(var ri=0; ri<20; ri++) roadStripes.push(ri/20);
+
+// ── exhaust particles ────────────────────────────────────────
+var particles = [];
+function spawnParticle(bx, by){
+  particles.push({
+    x: bx, y: by,
+    vx: -1.5 - Math.random()*1.2,
+    vy: (Math.random()-0.5)*0.4,
+    life: 1, r: 4+Math.random()*5,
+    alpha: 0.5
+  });
+}
+
+// ── road sparks (speed lines) ────────────────────────────────
+var sparks = [];
+for(var ski=0; ski<18; ski++){
+  sparks.push({
+    x: Math.random(),
+    y: 0.72 + Math.random()*0.12,
+    len: 0.04 + Math.random()*0.08,
+    spd: 0.006 + Math.random()*0.006,
+    alpha: 0.3 + Math.random()*0.4
+  });
+}
+
+// ── draw background ──────────────────────────────────────────
+function drawBG(alpha, t){
+  // Sky gradient
+  var skyGrd = ctx.createLinearGradient(0,0,0,H*0.68);
+  skyGrd.addColorStop(0,'#020510');
+  skyGrd.addColorStop(0.5,'#050c1a');
+  skyGrd.addColorStop(1,'#0a0810');
+  ctx.fillStyle = skyGrd;
+  ctx.fillRect(0,0,W,H);
+
+  // Stars
+  stars.forEach(function(s){
+    var tw = Math.sin(s.tw + t*0.8)*0.4+0.6;
+    ctx.beginPath();
+    ctx.arc(s.x*W, s.y*H, s.r*tw, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,'+(0.5*tw*alpha)+')';
+    ctx.fill();
+  });
+
+  // City skyline
+  var horizY = H*0.66;
+  // Ambient city glow
+  var cityGlo = ctx.createRadialGradient(W*0.5, horizY, 0, W*0.5, horizY, W*0.6);
+  cityGlo.addColorStop(0, 'rgba(255,120,20,0.12)');
+  cityGlo.addColorStop(1, 'transparent');
+  ctx.fillStyle = cityGlo;
+  ctx.fillRect(0,0,W,H);
+
+  // Buildings
+  ctx.fillStyle = 'rgba(8,10,20,'+alpha+')';
+  buildings.forEach(function(b){
+    var bX = b.x*W;
+    var bW = b.w*W;
+    var bH = b.h*H*0.55;
+    ctx.fillRect(bX, horizY-bH, bW, bH);
+    // Windows
+    for(var wi=0; wi<Math.floor(bW/8); wi++){
+      for(var wj=0; wj<Math.floor(bH/10); wj++){
+        if(Math.random()>0.62){
+          ctx.fillStyle='rgba(255,220,100,0.4)';
+          ctx.fillRect(bX+wi*8+1, horizY-bH+wj*10+2, 4, 5);
+          ctx.fillStyle='rgba(8,10,20,'+alpha+')';
+        }
+      }
+    }
+  });
+
+  // Road
+  var roadGrd = ctx.createLinearGradient(0,H*0.62,0,H);
+  roadGrd.addColorStop(0,'#0e0e10');
+  roadGrd.addColorStop(1,'#1a1a1e');
+  ctx.fillStyle = roadGrd;
+  ctx.fillRect(0, H*0.67, W, H*0.33);
+
+  // Road centre dividers (perspective)
+  var vanX = W*0.55, vanY = H*0.67;
+  for(var li=0; li<8; li++){
+    var lf = li/8;
+    var ly = vanY + (H - vanY)*lf;
+    var lx1 = lerp(vanX-2, W*0.1, lf);
+    var lx2 = lerp(vanX+2, W*0.9, lf);
+    // left lane line
+    ctx.beginPath();
+    ctx.moveTo(lx1, ly);
+    ctx.lineTo(lerp(vanX-2, W*0.1, (li+1)/8), vanY + (H - vanY)*((li+1)/8));
+    ctx.strokeStyle = 'rgba(255,200,50,'+(0.15+lf*0.2)*alpha+')';
+    ctx.lineWidth = 1+lf*2;
+    ctx.stroke();
+    // right lane line
+    ctx.beginPath();
+    ctx.moveTo(lx2, ly);
+    ctx.lineTo(lerp(vanX+2, W*0.9, (li+1)/8), vanY + (H - vanY)*((li+1)/8));
+    ctx.stroke();
+  }
+
+  // Road surface glow from headlight
+  var rdGlo = ctx.createRadialGradient(W*0.52, H*0.7, 0, W*0.52, H*0.78, W*0.28);
+  rdGlo.addColorStop(0,'rgba(200,180,100,0.08)');
+  rdGlo.addColorStop(1,'transparent');
+  ctx.fillStyle = rdGlo;
+  ctx.fillRect(0, H*0.67, W, H*0.33);
+}
+
+// ── draw speed sparks (motion lines) ─────────────────────────
+function drawSparks(alpha, bikeX){
+  sparks.forEach(function(s){
+    if(s.x > bikeX/W - 0.05){
+      ctx.beginPath();
+      ctx.moveTo(s.x*W, s.y*H);
+      ctx.lineTo((s.x+s.len)*W, s.y*H);
+      ctx.strokeStyle = 'rgba(150,180,255,'+(s.alpha*alpha)+')';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+    s.x -= s.spd;
+    if(s.x+s.len < 0) s.x = 1 + Math.random()*0.1;
+  });
+}
+
+// ── draw Royal Enfield-style motorcycle ──────────────────────
+function drawBike(bx, by, sc, wheelRot, alpha){
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(bx, by);
+  ctx.scale(sc, sc);
+
+  var W2 = 110, H2 = 80;  // bike dimensions in local units
+
+  // === SHADOW ===
+  ctx.save();
+  ctx.scale(1, 0.18);
+  var shGrd = ctx.createRadialGradient(0,0,0,0,0,80);
+  shGrd.addColorStop(0,'rgba(0,0,0,0.5)');
+  shGrd.addColorStop(1,'transparent');
+  ctx.fillStyle = shGrd;
+  ctx.beginPath(); ctx.ellipse(0,0,90,40,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // === REAR WHEEL ===
+  drawWheel(-52, 0, 30, wheelRot, ctx);
+
+  // === FRONT WHEEL ===
+  drawWheel(42, 0, 28, wheelRot*1.02, ctx);
+
+  // === SWINGARM ===
+  ctx.beginPath();
+  ctx.moveTo(-52, -8); ctx.lineTo(-14, -22);
+  ctx.strokeStyle='#333'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.stroke();
+
+  // === FRAME ===
+  // Main spine
+  ctx.beginPath();
+  ctx.moveTo(-14,-22); ctx.bezierCurveTo(-8,-32, 8,-38, 18,-38);
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=9; ctx.stroke();
+  // Down tube
+  ctx.beginPath();
+  ctx.moveTo(18,-38); ctx.lineTo(8,-8);
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=7; ctx.stroke();
+  // Seat tube
+  ctx.beginPath();
+  ctx.moveTo(-14,-22); ctx.lineTo(-6,-48);
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=6; ctx.stroke();
+
+  // === FUEL TANK ===
+  ctx.beginPath();
+  ctx.moveTo(-8,-38);
+  ctx.bezierCurveTo(-10,-52, 5,-58, 16,-55);
+  ctx.bezierCurveTo(25,-52, 26,-44, 22,-38);
+  ctx.bezierCurveTo(12,-36, 0,-36, -8,-38);
+  ctx.closePath();
+  var tankGrd = ctx.createLinearGradient(-8,-58,22,-38);
+  tankGrd.addColorStop(0,'#cc2200');
+  tankGrd.addColorStop(0.4,'#ee3311');
+  tankGrd.addColorStop(1,'#881100');
+  ctx.fillStyle = tankGrd;
+  ctx.fill();
+  ctx.strokeStyle='#ff4422'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Tank highlight
+  ctx.beginPath();
+  ctx.moveTo(-2,-53); ctx.bezierCurveTo(4,-58, 14,-56, 18,-52);
+  ctx.strokeStyle='rgba(255,180,160,0.4)'; ctx.lineWidth=2; ctx.stroke();
+
+  // === SEAT ===
+  ctx.beginPath();
+  ctx.moveTo(-18,-44);
+  ctx.bezierCurveTo(-16,-52, -6,-56, 2,-54);
+  ctx.bezierCurveTo(8,-52, 8,-46, 4,-44);
+  ctx.bezierCurveTo(-2,-42, -14,-42, -18,-44);
+  ctx.closePath();
+  ctx.fillStyle='#1a1a1a'; ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=1; ctx.stroke();
+
+  // Seat padding
+  ctx.beginPath();
+  ctx.moveTo(-16,-46); ctx.bezierCurveTo(-14,-50,-4,-53,2,-51);
+  ctx.bezierCurveTo(6,-49,6,-46,2,-45);
+  ctx.strokeStyle='rgba(80,80,80,0.5)'; ctx.lineWidth=1; ctx.stroke();
+
+  // === HEADLIGHT NACELLE ===
+  ctx.beginPath();
+  ctx.ellipse(44,-14, 18, 14, -0.15, 0, Math.PI*2);
+  ctx.fillStyle='#1a1a1a'; ctx.fill();
+  ctx.strokeStyle='#333'; ctx.lineWidth=2; ctx.stroke();
+  // Headlight lens
+  ctx.beginPath();
+  ctx.ellipse(46,-14, 12, 10, -0.1, 0, Math.PI*2);
+  var hlGrd = ctx.createRadialGradient(48,-16,0,46,-14,12);
+  hlGrd.addColorStop(0,'rgba(255,245,200,0.95)');
+  hlGrd.addColorStop(0.5,'rgba(255,220,100,0.7)');
+  hlGrd.addColorStop(1,'rgba(200,160,50,0.1)');
+  ctx.fillStyle = hlGrd;
+  ctx.fill();
+  // Headlight beam (cone of light forward)
+  var beamGrd = ctx.createRadialGradient(58,-14,2,120,-14,160);
+  beamGrd.addColorStop(0,'rgba(255,245,200,0.18)');
+  beamGrd.addColorStop(1,'transparent');
+  ctx.beginPath();
+  ctx.moveTo(58,-14);
+  ctx.lineTo(220, 30); ctx.lineTo(220,-58); ctx.closePath();
+  ctx.fillStyle = beamGrd; ctx.fill();
+
+  // === FORK ===
+  ctx.beginPath();
+  ctx.moveTo(30,-22); ctx.lineTo(42,-2);
+  ctx.moveTo(36,-22); ctx.lineTo(48,-2);
+  ctx.strokeStyle='#555'; ctx.lineWidth=5; ctx.lineCap='round'; ctx.stroke();
+
+  // === EXHAUST ===
+  ctx.beginPath();
+  ctx.moveTo(-8,-10); ctx.bezierCurveTo(-30,-10, -48,-2, -56,8);
+  ctx.strokeStyle='#666'; ctx.lineWidth=4; ctx.stroke();
+  // exhaust tip
+  ctx.beginPath(); ctx.ellipse(-58,9,5,3,-0.3,0,Math.PI*2);
+  ctx.fillStyle='#555'; ctx.fill();
+
+  // === REAR FENDER ===
+  ctx.beginPath();
+  ctx.moveTo(-38,-16); ctx.bezierCurveTo(-44,-22,-56,-16,-54,-6);
+  ctx.strokeStyle='#cc2200'; ctx.lineWidth=4; ctx.stroke();
+
+  // === FRONT FENDER ===
+  ctx.beginPath();
+  ctx.moveTo(28,10); ctx.bezierCurveTo(32,18,40,20,46,14);
+  ctx.strokeStyle='#cc2200'; ctx.lineWidth=4; ctx.stroke();
+
+  // === TAILLIGHT ===
+  ctx.beginPath(); ctx.ellipse(-22,-43,5,3,0.2,0,Math.PI*2);
+  ctx.fillStyle='rgba(255,0,0,0.9)';
+  ctx.shadowColor='red'; ctx.shadowBlur=8;
+  ctx.fill(); ctx.shadowBlur=0;
+
+  // === HANDLEBAR ===
+  ctx.beginPath();
+  ctx.moveTo(24,-28); ctx.lineTo(28,-36); ctx.lineTo(18,-40);
+  ctx.strokeStyle='#444'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.stroke();
+  // mirror
+  ctx.beginPath(); ctx.moveTo(17,-40); ctx.lineTo(10,-44);
+  ctx.strokeStyle='#555'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(10,-45,4,2,0.4,0,Math.PI*2);
+  ctx.fillStyle='#222'; ctx.fill();
+
+  // === RIDER (silhouette) ===
+  ctx.fillStyle='rgba(20,20,24,0.95)';
+  // Body
+  ctx.beginPath();
+  ctx.moveTo(-6,-48); ctx.bezierCurveTo(-10,-68,-4,-78,4,-76);
+  ctx.bezierCurveTo(14,-74,18,-64,16,-54);
+  ctx.bezierCurveTo(10,-50,0,-48,-6,-48);
+  ctx.closePath(); ctx.fill();
+  // Helmet
+  ctx.beginPath(); ctx.arc(6,-78,14,0,Math.PI*2);
+  var helGrd = ctx.createRadialGradient(2,-84,2,6,-78,14);
+  helGrd.addColorStop(0,'#3a3a3a');
+  helGrd.addColorStop(1,'#111');
+  ctx.fillStyle=helGrd; ctx.fill();
+  ctx.strokeStyle='#444'; ctx.lineWidth=1; ctx.stroke();
+  // Visor
+  ctx.beginPath();
+  ctx.moveTo(-4,-77); ctx.bezierCurveTo(-2,-84,14,-84,17,-77);
+  ctx.bezierCurveTo(14,-73,-2,-73,-4,-77);
+  ctx.fillStyle='rgba(40,140,200,0.35)'; ctx.fill();
+  // Arms
+  ctx.beginPath();
+  ctx.moveTo(10,-62); ctx.bezierCurveTo(16,-60,22,-50,28,-42);
+  ctx.strokeStyle='rgba(20,20,24,0.95)'; ctx.lineWidth=8; ctx.lineCap='round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(6,-60); ctx.bezierCurveTo(12,-58,18,-50,24,-46);
+  ctx.lineWidth=7; ctx.stroke();
+  // Leg
+  ctx.beginPath();
+  ctx.moveTo(-4,-50); ctx.bezierCurveTo(-10,-38,-18,-28,-20,-16);
+  ctx.lineWidth=8; ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawWheel(wx, wy, wr, rot, ctx){
+  // Tyre
+  ctx.beginPath(); ctx.arc(wx, wy, wr, 0, Math.PI*2);
+  ctx.fillStyle='#0e0e10'; ctx.fill();
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=7; ctx.stroke();
+
+  // Tyre tread
+  ctx.beginPath(); ctx.arc(wx, wy, wr, 0, Math.PI*2);
+  ctx.strokeStyle='#333'; ctx.lineWidth=5; ctx.stroke();
+
+  // Rim
+  ctx.beginPath(); ctx.arc(wx, wy, wr*0.72, 0, Math.PI*2);
+  var rimGrd = ctx.createRadialGradient(wx-wr*0.2,wy-wr*0.2,0,wx,wy,wr*0.72);
+  rimGrd.addColorStop(0,'#888');
+  rimGrd.addColorStop(0.5,'#444');
+  rimGrd.addColorStop(1,'#222');
+  ctx.fillStyle = rimGrd; ctx.fill();
+  ctx.strokeStyle='#666'; ctx.lineWidth=2; ctx.stroke();
+
+  // Spokes (5)
+  for(var i=0;i<5;i++){
+    var a = rot + i*(Math.PI*2/5);
+    ctx.beginPath();
+    ctx.moveTo(wx + Math.cos(a)*wr*0.12, wy + Math.sin(a)*wr*0.12);
+    ctx.lineTo(wx + Math.cos(a)*wr*0.68, wy + Math.sin(a)*wr*0.68);
+    ctx.strokeStyle='#666'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.stroke();
+  }
+
+  // Hub
+  ctx.beginPath(); ctx.arc(wx, wy, wr*0.12, 0, Math.PI*2);
+  ctx.fillStyle='#777'; ctx.fill();
+  ctx.beginPath(); ctx.arc(wx, wy, wr*0.05, 0, Math.PI*2);
+  ctx.fillStyle='#aaa'; ctx.fill();
+
+  // Brake disc
+  ctx.beginPath(); ctx.arc(wx, wy, wr*0.5, 0, Math.PI*2);
+  ctx.strokeStyle='rgba(180,180,180,0.15)'; ctx.lineWidth=4; ctx.stroke();
+}
+
+// ── draw full cluster ─────────────────────────────────────────
+function drawCluster(sAngle, tAngle, alpha){
+  if(alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  var cx = W*0.5, cy = H*0.5;
+  var maxR = Math.min(W,H) * 0.42;
+
+  // Cluster dark background panel
+  var bgGrd = ctx.createRadialGradient(cx,cy,0,cx,cy,maxR*1.2);
+  bgGrd.addColorStop(0,'rgba(4,4,10,0.97)');
+  bgGrd.addColorStop(0.75,'rgba(4,4,10,0.93)');
+  bgGrd.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = bgGrd;
+  ctx.fillRect(0,0,W,H);
+
+  var gap = maxR * 0.38;
+  var gR  = maxR * 0.44;
+
+  // Left = speedometer (cyan)
+  _drawGauge(cx - gap, cy, gR, sAngle, '#00d4ff','#0066cc','km/h','SPEED', 0, 320, 10);
+  // Right = tachometer (orange-red)
+  _drawGauge(cx + gap, cy, gR, tAngle, '#ff5500','#cc0000','×1000','TACHO', 0, 8, 9);
+  // Centre MFD
+  _drawMFD(cx, cy, gR*0.28, sAngle, tAngle);
+
+  ctx.restore();
+}
+
+function _drawGauge(cx,cy,R,nAngle,col,col2,unit,title,minV,maxV,numTicks){
+  // Bezel
+  var bez = ctx.createRadialGradient(cx,cy,R*0.9,cx,cy,R*1.05);
+  bez.addColorStop(0,'#2a2a2a'); bez.addColorStop(0.5,'#444'); bez.addColorStop(1,'#111');
+  ctx.beginPath(); ctx.arc(cx,cy,R*1.05,0,Math.PI*2);
+  ctx.fillStyle=bez; ctx.fill();
+
+  // Arc background
+  var arcS = Math.PI*0.72, arcE = Math.PI*2.28;
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.88,arcS,arcE);
+  ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=R*0.055; ctx.lineCap='round'; ctx.stroke();
+
+  // Active arc
+  var frac = clamp((nAngle-(-2.4))/(1.4-(-2.4)),0,1);
+  if(frac > 0.001){
+    var arcCur = arcS + (arcE-arcS)*frac;
+    var arcGrd = ctx.createLinearGradient(cx-R,cy,cx+R,cy);
+    arcGrd.addColorStop(0,col); arcGrd.addColorStop(1,col2);
+    ctx.beginPath(); ctx.arc(cx,cy,R*0.88,arcS,arcCur);
+    ctx.strokeStyle=arcGrd; ctx.lineWidth=R*0.055; ctx.lineCap='round'; ctx.stroke();
+    // Glow layer
+    ctx.beginPath(); ctx.arc(cx,cy,R*0.88,arcS,arcCur);
+    ctx.strokeStyle=col+'33'; ctx.lineWidth=R*0.10; ctx.lineCap='round'; ctx.stroke();
+  }
+
+  // Face
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.82,0,Math.PI*2);
+  ctx.fillStyle='rgba(4,4,10,0.97)'; ctx.fill();
+
+  // Ticks + numbers
+  for(var ti=0; ti<=numTicks*4; ti++){
+    var tf = ti/(numTicks*4);
+    var ta = arcS + (arcE-arcS)*tf;
+    var isMaj = ti % 4 === 0;
+    var innerR = R * (isMaj ? 0.65 : 0.71);
+    var outerR = R * 0.77;
+    ctx.beginPath();
+    ctx.moveTo(cx+Math.cos(ta)*innerR, cy+Math.sin(ta)*innerR);
+    ctx.lineTo(cx+Math.cos(ta)*outerR, cy+Math.sin(ta)*outerR);
+    ctx.strokeStyle = tf <= frac+0.01 ? col : 'rgba(180,180,180,0.4)';
+    ctx.lineWidth = isMaj ? R*0.018 : R*0.009;
+    ctx.lineCap = 'round'; ctx.stroke();
+    if(isMaj && ti>0 && ti<numTicks*4){
+      var numVal = minV + (maxV-minV)*(ti/(numTicks*4));
+      ctx.font = 'bold '+(R*0.088)+'px JetBrains Mono,monospace';
+      ctx.fillStyle = 'rgba(200,200,200,0.75)';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(Math.round(numVal), cx+Math.cos(ta)*R*0.54, cy+Math.sin(ta)*R*0.54);
+    }
+  }
+
+  // Needle
+  ctx.save(); ctx.translate(cx,cy);
+  var nA = arcS + (arcE-arcS)*frac;
+  ctx.rotate(nA);
+  var nGrd = ctx.createLinearGradient(0,0,R*0.72,0);
+  nGrd.addColorStop(0,'transparent'); nGrd.addColorStop(0.3,col+'88'); nGrd.addColorStop(1,col);
+  ctx.beginPath();
+  ctx.moveTo(-R*0.14,0); ctx.lineTo(R*0.68,R*0.016);
+  ctx.lineTo(R*0.75,0); ctx.lineTo(R*0.68,-R*0.016); ctx.closePath();
+  ctx.fillStyle=nGrd; ctx.fill();
+  // Needle tip glow
+  ctx.beginPath(); ctx.arc(R*0.72,0,R*0.018,0,Math.PI*2);
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=R*0.1; ctx.fill(); ctx.shadowBlur=0;
+  ctx.restore();
+
+  // Hub
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.075,0,Math.PI*2);
+  var hGrd=ctx.createRadialGradient(cx-R*0.02,cy-R*0.02,0,cx,cy,R*0.075);
+  hGrd.addColorStop(0,'#888'); hGrd.addColorStop(1,'#222');
+  ctx.fillStyle=hGrd; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.028,0,Math.PI*2);
+  ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=R*0.06; ctx.fill(); ctx.shadowBlur=0;
+
+  // Labels
+  ctx.font='bold '+(R*0.079)+'px Rajdhani,sans-serif';
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(unit, cx, cy+R*0.40);
+  ctx.font=(R*0.068)+'px JetBrains Mono,monospace';
+  ctx.fillStyle=col+'99';
+  ctx.fillText(title, cx, cy-R*0.58);
+}
+
+function _drawMFD(cx,cy,r,sA,tA){
+  var frac = clamp((sA-(-2.4))/(1.4-(-2.4)),0,1);
+  var spd = Math.round(frac*320);
+
+  // Panel
+  ctx.beginPath();
+  if(ctx.roundRect) ctx.roundRect(cx-r*1.15, cy-r*0.95, r*2.3, r*1.9, r*0.15);
+  else { ctx.rect(cx-r*1.15, cy-r*0.95, r*2.3, r*1.9); }
+  ctx.fillStyle='rgba(4,6,14,0.96)';
+  ctx.strokeStyle='rgba(0,180,255,0.25)'; ctx.lineWidth=1.5;
+  ctx.fill(); ctx.stroke();
+
+  // Speed digits
+  ctx.font='bold '+(r*0.78)+'px JetBrains Mono,monospace';
+  ctx.fillStyle='#00d4ff';
+  ctx.shadowColor='#00d4ff'; ctx.shadowBlur=r*0.35;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(spd, cx, cy-r*0.08);
+  ctx.shadowBlur=0;
+
+  ctx.font=(r*0.28)+'px Rajdhani,sans-serif';
+  ctx.fillStyle='rgba(0,210,255,0.55)';
+  ctx.fillText('km/h', cx, cy+r*0.55);
+
+  // Gear
+  var gear = Math.max(1, Math.min(6, Math.ceil(frac*6)));
+  if(frac<0.02) gear=1;
+  ctx.font='bold '+(r*0.55)+'px Rajdhani,sans-serif';
+  ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=r*0.12;
+  ctx.fillText(gear, cx+r*0.86, cy-r*0.08);
+  ctx.shadowBlur=0;
+  ctx.font=(r*0.2)+'px JetBrains Mono,monospace';
+  ctx.fillStyle='rgba(255,255,255,0.38)';
+  ctx.fillText('GEAR', cx+r*0.86, cy+r*0.38);
+}
+
+// ── ANIMATION STATE ───────────────────────────────────────────
+var START = null, done = false;
+var bikeX = -160;
+var wheelRot = 0;
+var sNeedle = -2.4, tNeedle = -2.4;
+var zoomScale = 1, zoomTX = 0, zoomTY = 0;
+var clsAlpha = 0;
+
+function frame(ts){
+  if(done) return;
+  requestAnimationFrame(frame);
+  if(!START) START = ts;
+  var t = (ts - START) / 1000;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Global opacity for fade-in
+  var globalAlpha = clamp(t / 0.8, 0, 1);
+
+  // ── Phase 0: scene fades in (0–1.5s) ──
+  var sceneAlpha = clamp(t/0.8, 0, 1);
+
+  // ── Phase 1: bike rides in (1.5–3.5s) ──
+  var bikeTargetX = W * 0.52;
+  if(t >= 0.4 && t < 3.5){
+    var p1 = clamp((t-0.4)/2.2, 0, 1);
+    var e1 = p1 < 0.7 ? eout(p1/0.7) : 1;
+    bikeX = lerp(-160, bikeTargetX, e1);
+  } else if(t >= 3.5){
+    bikeX = bikeTargetX;
+  }
+
+  // Wheel rotation (faster when moving)
+  var speed = t >= 3.5 ? 0 : Math.max(0, (bikeX - (-160)) / (bikeTargetX+160)) * 0.18;
+  wheelRot += speed;
+
+  // Exhaust particles
+  if(t < 3.5 && t > 0.5 && Math.random() < 0.4){
+    spawnParticle(bikeX - 160, H*0.685);
+  }
+
+  // ── Phase 2: camera zoom into cluster (3.5–4.5s) ──
+  if(t >= 3.5 && t < 4.5){
+    var pZ = eio(clamp((t-3.5)/1.0,0,1));
+    zoomScale = lerp(1, 4.5, pZ);
+    zoomTX = lerp(0, -(W*0.52 - W*0.5)*4.5, pZ);
+    zoomTY = lerp(0, -(H*0.67 - H*0.5)*4.5, pZ);
+    clsAlpha = lerp(0, 1, pZ);
+  }
+
+  // ── Phase 3: needle sweep to max (4.5–5.8s) ──
+  if(t >= 4.5 && t < 5.8){
+    var pN = eio(clamp((t-4.5)/1.3,0,1));
+    sNeedle = lerp(-2.4, 1.4, pN);
+    tNeedle = lerp(-2.4, 1.4, pN);
+    clsAlpha = 1; zoomScale=4.5; zoomTX=-(W*0.52-W*0.5)*4.5; zoomTY=-(H*0.67-H*0.5)*4.5;
+  }
+
+  // ── Phase 4: needles sweep back (5.8–6.8s) ──
+  if(t >= 5.8 && t < 6.8){
+    var pNB = eio(clamp((t-5.8)/1.0,0,1));
+    sNeedle = lerp(1.4, -2.4, pNB);
+    tNeedle = lerp(1.4, -2.4, pNB);
+    clsAlpha = 1;
+  }
+
+  // ── Phase 5: fade to black (6.8–7.4s) ──
+  var fadeOut = 0;
+  if(t >= 6.8){ fadeOut = clamp((t-6.8)/0.6, 0, 1); }
+
+  // ── DRAW ─────────────────────────────────────────────────
+  ctx.save();
+  if(t < 3.5){
+    // Normal view — draw scene
+    ctx.globalAlpha = sceneAlpha;
+    drawBG(1, t);
+    drawSparks(clamp(t-0.6,0,1), bikeX);
+
+    // Particles
+    particles = particles.filter(function(p){
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle='rgba(100,100,100,'+p.life*0.25+')';
+      ctx.fill();
+      p.x+=p.vx; p.y+=p.vy; p.life-=0.025; p.r*=0.98;
+      return p.life > 0;
+    });
+
+    // Bike
+    var bikeScale = 1 + (H - 600)/2000;
+    var bikeY = H*0.685;
+    drawBike(bikeX, bikeY, bikeScale, wheelRot, 1);
+
+    // Headlight cone on road when bike is on screen
+    if(bikeX > 0){
+      var lx = bikeX+45*bikeScale, ly = bikeY-14*bikeScale;
+      var coneGrd = ctx.createRadialGradient(lx, ly, 5, lx+200, H*0.72, 280);
+      coneGrd.addColorStop(0,'rgba(255,245,180,0.14)');
+      coneGrd.addColorStop(1,'transparent');
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(lx+300, H*0.58);
+      ctx.lineTo(lx+300, H*0.82);
+      ctx.closePath();
+      ctx.fillStyle=coneGrd; ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // Zoom phase — draw bg + bike zoomed in
+    ctx.save();
+    ctx.translate(W*0.5 + zoomTX, H*0.5 + zoomTY);
+    ctx.scale(zoomScale, zoomScale);
+    ctx.translate(-W*0.5, -H*0.5);
+    ctx.globalAlpha = 1;
+    drawBG(1, t);
+    drawBike(bikeX, H*0.685, 1 + (H-600)/2000, wheelRot, 1);
+    ctx.restore();
+    // Cluster overlay
+    drawCluster(sNeedle, tNeedle, clsAlpha);
+  }
+  ctx.restore();
+
+  // Fade to black
+  if(fadeOut > 0){
+    ctx.fillStyle='rgba(0,0,0,'+ein(fadeOut)+')';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  if(t >= 7.4 && !done){
+    done = true;
+    document.getElementById('sp').classList.add('done');
+    setTimeout(function(){
+      document.getElementById('sp').style.display='none';
+      document.getElementById('home').classList.add('show');
+    },400);
+  }
+}
+requestAnimationFrame(frame);
+})();
+
+function skipSplash(){
+  document.getElementById('sp').classList.add('done');
+  setTimeout(function(){document.getElementById('sp').style.display='none';document.getElementById('home').classList.add('show');},400);
+}
+function toggleTheme(){
+  var h=document.documentElement,d=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme',d?'light':'dark');
+  var icon=d?'🌙':'☀️';
+  ['thbtn','hthbtn'].forEach(function(id){var b=document.getElementById(id);if(b)b.innerHTML=icon;});
+}
+function openApp(){
+  var homeEl=document.getElementById('home');
+  var appEl=document.getElementById('app');
+  homeEl.classList.add('page-exit');
+  setTimeout(function(){
+    homeEl.style.display='none';
+    homeEl.classList.remove('page-exit');
+    appEl.classList.add('show','page-enter');
+    setTimeout(function(){appEl.classList.remove('page-enter');},450);
+  },440);
+}
+var CS=0,DR=[],A1='EXE',AE='XOR',WB=null,SD=null,SH=[],CC=null,CT=null,CK=null;
+var SL=['01/06 · Project','02/06 · CAN IDs','03/06 · Sessions','04/06 · Security','05/06 · DIDs','06/06 · Export'];
+function go(n){
+  var ni=document.querySelectorAll('.ni');
+  var dir=n>CS?1:-1; // 1=forward, -1=backward
+  var exitCls=dir>0?'step-exit-left':'step-exit-right';
+  var enterCls=dir>0?'step-enter-right':'step-enter-left';
+  var oldSec=document.getElementById('s'+CS);
+  // update nav
+  ni[CS].classList.remove('on');if(n>CS)ni[CS].classList.add('done');
+  CS=n;ni[n].classList.add('on');ni[n].classList.remove('done');
+  document.getElementById('tbstep').textContent=SL[n];
+  document.getElementById('tbprog').style.width=Math.round((n+1)/6*100)+'%';
+  if(n===5)buildExp();updCnt();
+  // animate exit
+  if(oldSec && oldSec.classList.contains('on')){
+    oldSec.classList.add('animating',exitCls);
+    oldSec.classList.remove('on');
+    setTimeout(function(){
+      oldSec.classList.remove('animating',exitCls);
+      // show new step with enter animation
+      var newSec=document.getElementById('s'+n);
+      newSec.classList.add('on','animating',enterCls);
+      setTimeout(function(){newSec.classList.remove('animating',enterCls);},420);
+    },340);
+  } else {
+    var newSec=document.getElementById('s'+n);
+    newSec.classList.add('on','animating',enterCls);
+    setTimeout(function(){newSec.classList.remove('animating',enterCls);},420);
+  }
+}
+function selAlgo(lv,val,el){
+  var gid=lv===1?'a1g':'aeg';
+  document.getElementById(gid).querySelectorAll('.ao').forEach(function(c){c.classList.remove('on');});
+  el.classList.add('on');if(lv===1)A1=val;else AE=val;
+}
+function g(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+function updateEolPreview(){
+  var did=g('eolActDid')||'FD 60';
+  var val=g('eolActVal')||'01';
+  var didH=did.replace('0x','').toUpperCase().padStart(4,'0');
+  var pd=document.getElementById('eolPreviewDid');
+  var pv=document.getElementById('eolPreviewVal');
+  if(pd) pd.textContent=didH.slice(0,2)+' '+didH.slice(2);
+  if(pv) pv.textContent=val.replace('0x','').toUpperCase().padStart(2,'0');
+}
+function onEolSessChange(){
+  var v=g('ssEol');
+  var sec=document.getElementById('eolEntrySection');
+  if(sec) sec.style.display=v?'block':'none';
+  // Refresh all DID rows to add/remove EOL checkbox
+  refreshAllRowSessions();
+}
+function refreshAllRowSessions(){
+  var ss=getSess();
+  DR.forEach(function(id){
+    var row=document.getElementById('rw'+id);
+    if(!row)return;
+    var cbWrap=row.querySelector('.scbs');
+    if(!cbWrap)return;
+    // Save currently checked values
+    var checked={};
+    cbWrap.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      checked[cb.dataset.sess]=cb.checked;
+    });
+    // Rebuild checkboxes
+    cbWrap.innerHTML=ss.map(function(s){
+      var ck=checked[s.val]?'checked':'';
+      return '<label><input type="checkbox" data-sess="'+s.val+'" class="rs'+id+'" '+ck+' onchange="updateRowEolBadge(\''+id+'\')"'+'> '+s.label+'</label>';
+    }).join('');
+    // Update EOL visual indicator
+    updateRowEolBadge(id);
+  });
+}
+function updateRowEolBadge(id){
+  var row=document.getElementById('rw'+id);
+  if(!row)return;
+  var eolVal=g('ssEol');
+  if(!eolVal)return;
+  var checked=false;
+  row.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+    if(cb.dataset.sess===eolVal&&cb.checked) checked=true;
+  });
+  // Add/remove EOL badge on DID cell
+  var didCell=row.cells[0];
+  var badge=didCell.querySelector('.eol-badge');
+  if(checked&&!badge){
+    var b=document.createElement('div');
+    b.className='eol-badge';
+    b.textContent='EOL';
+    b.style.cssText='font-size:8px;background:#f59e0b;color:#000;border-radius:3px;padding:1px 4px;margin-top:2px;font-weight:700;letter-spacing:.06em;width:fit-content';
+    didCell.appendChild(b);
+  } else if(!checked&&badge){
+    badge.remove();
+  }
+}
+function onDrop(e){e.preventDefault();document.getElementById('dz').classList.remove('dg');var f=e.dataTransfer.files[0];if(f)procFile(f);}
+function onFile(e){var f=e.target.files[0];if(f)procFile(f);}
+function procFile(f){
+  var r=new FileReader();
+  r.onload=function(ev){
+    try{
+      document.getElementById('uprog').style.width='60%';
+      WB=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellStyles:true,cellNF:true});
+      document.getElementById('uprog').style.width='100%';
+      showSheets();toast('Loaded: '+f.name,'info');
+      setTimeout(function(){document.getElementById('uprog').style.width='0';},900);
+    }catch(err){toast('Error: '+err.message,'err');}
+  };r.readAsArrayBuffer(f);
+}
+function showSheets(){
+  document.getElementById('sheetSel').style.display='block';
+  var p=document.getElementById('shpills');p.innerHTML='';
+  WB.SheetNames.forEach(function(n,i){
+    var d=document.createElement('div');d.className='spill'+(i===0?' on':'');d.textContent=n;
+    d.onclick=function(){document.querySelectorAll('.spill').forEach(function(x){x.classList.remove('on');});d.classList.add('on');loadSh(n);};
+    p.appendChild(d);
+  });
+  loadSh(WB.SheetNames[0]);
+}
+function loadSh(n){
+  var ws=WB.Sheets[n];
+  SD=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  if(!SD.length)return;
+  var hr=0;while(hr<SD.length&&SD[hr].every(function(c){return c==='';})){ hr++; }
+  SH=SD[hr].map(function(h,i){return h||('Col '+(i+1));});
+  buildMapper();buildPv(hr);
+  document.getElementById('colMap').style.display='block';
+}
+function buildMapper(){
+  var ids=['mDid','mName','mLen','mRead','mWrite','mSec','mDef','mRange','mIOCtrl','mDesc'];
+  var kw={mDid:['did','id','identifier','hex'],mName:['name','desc','signal'],mLen:['length','len','size','bytes'],mRead:['read','readable'],mWrite:['write','writable'],mSec:['security','sec','level'],mDef:['default','value','def'],mRange:['range','min','max'],mIOCtrl:['i/o','io control','iocontrol','ioctrl'],mDesc:['description','data bytes','byte desc']};
+  ids.forEach(function(sid){
+    var s=document.getElementById(sid);s.innerHTML='<option value="">-- none --</option>';
+    SH.forEach(function(h,i){var o=document.createElement('option');o.value=i;o.textContent=h;s.appendChild(o);});
+    (kw[sid]||[]).forEach(function(k){SH.forEach(function(h,i){if(h.toLowerCase().includes(k))s.value=i;});});
+  });
+}
+function buildPv(hr){
+  var rows=SD.slice(hr,hr+6);
+  var html='<table class="pvtbl"><thead><tr>';
+  SH.forEach(function(h){html+='<th>'+esc(h)+'</th>';});
+  html+='</tr></thead><tbody>';
+  rows.slice(1).forEach(function(row){html+='<tr>';SH.forEach(function(_,i){html+='<td>'+esc(String(row[i]||''))+'</td>';});html+='</tr>';});
+  html+='</tbody></table>';
+  document.getElementById('pvarea').innerHTML='<div class="pvwrap">'+html+'</div>';
+  document.getElementById('pvinfo').textContent=(SD.length-hr-1)+' rows';
+}
+function importXL(){
+  if(!SD)return;
+  var ci=parseInt(gv('mDid')),cn=parseInt(gv('mName')),cl=parseInt(gv('mLen'));
+  var cr=parseInt(gv('mRead')),cw=parseInt(gv('mWrite')),cs=parseInt(gv('mSec')),cd=parseInt(gv('mDef'));
+  var cRange=parseInt(gv('mRange')),cIO=parseInt(gv('mIOCtrl')),cDesc=parseInt(gv('mDesc'));
+  var hr=0;while(hr<SD.length&&SD[hr].every(function(c){return c==='';})){ hr++; }
+  var imp=0,skipped=0;
+  // Get raw worksheet for style checking (strikethrough detection)
+  var wsName=WB.SheetNames[0];
+  var rawWS=WB.Sheets[wsName];
+  // Use mapped columns or auto-detect by header keywords
+  var ioCtrlCol = !isNaN(cIO) ? cIO : -1;
+  var rangeCol  = !isNaN(cRange) ? cRange : -1;
+  var descCol   = !isNaN(cDesc) ? cDesc : -1;
+  // Auto-detect IOCtrl column if not mapped
+  if(ioCtrlCol<0) {
+    for(var hri=0;hri<=hr+3;hri++){
+      if(!SD[hri])continue;
+      SD[hri].forEach(function(h,i){
+        if(typeof h==='string'&&h.toLowerCase().includes('i/o control')&&i>ci) ioCtrlCol=i;
+      });
+      if(ioCtrlCol>=0)break;
+    }
+  }
+  // Auto-detect Range column if not mapped
+  if(rangeCol<0) {
+    for(var hri=0;hri<=hr+3;hri++){
+      if(!SD[hri])continue;
+      SD[hri].forEach(function(h,i){
+        var lh=(h||'').toString().toLowerCase();
+        if((lh.includes('range')||lh==='min'||lh==='max')&&i>ci) { rangeCol=i; }
+      });
+      if(rangeCol>=0)break;
+    }
+  }
+  SD.slice(hr+1).forEach(function(row, rowOffset){
+    var did=isNaN(ci)?'':String(row[ci]||'').trim();if(!did)return;
+    // Check strikethrough on DID cell using raw worksheet cell style
+    var actualRow=hr+1+rowOffset+1; // 1-indexed row in sheet (+1 for header row)
+    var colLetter=XLSX.utils.encode_col(ci);
+    var cellAddr=colLetter+actualRow;
+    var rawCell=rawWS[cellAddr];
+    if(rawCell&&rawCell.s&&rawCell.s.strike){skipped++;return;} // skip strikethrough rows
+    if(!did.startsWith('0x')&&!did.startsWith('0X')){var n=parseInt(did);if(!isNaN(n))did='0x'+n.toString(16).toUpperCase().padStart(4,'0');}
+    var nm=isNaN(cn)?'':String(row[cn]||'').trim().toUpperCase().replace(/\s+/g,'_');
+    var ln=isNaN(cl)?'1':String(row[cl]||'1').trim();
+    var rs=isNaN(cr)?'0x01,0x03':String(row[cr]||'').trim();
+    var ws=isNaN(cw)?'':String(row[cw]||'').trim();
+    var sec=isNaN(cs)?'':String(row[cs]||'').trim().toLowerCase();
+    var dv=isNaN(cd)?'':String(row[cd]||'').trim();
+    // Range column: parse "0 to 255" or "0x00 to 0xFF" or "0-255"
+    var rangeStr=rangeCol>=0?String(row[rangeCol]||'').trim():'';
+    var parsedMin=null,parsedMax=null;
+    if(rangeStr&&rangeStr.toUpperCase()!=='NA'&&rangeStr!=='-'){
+      var rmatch=rangeStr.match(/^(0x[0-9a-fA-F]+|\d+)\s*(?:to|-)\s*(0x[0-9a-fA-F]+|\d+)/i);
+      if(rmatch){
+        function toHexStr(v){return v.startsWith('0x')||v.startsWith('0X')?v.toLowerCase():'0x'+parseInt(v).toString(16);}
+        parsedMin=toHexStr(rmatch[1]);
+        parsedMax=toHexStr(rmatch[2]);
+      }
+    }
+    // Description column: extract bmap
+    var descStr=descCol>=0?String(row[descCol]||'').trim():'';
+    var parsedBmap='';
+    if(descStr){
+      var bmLines=descStr.split(/\n/).map(function(l){return l.trim();}).filter(function(l){
+        return /([a-zA-Z]{2})?[_\s]*[Bb]it[_\s]?\d+\s*[->=:]+/i.test(l);
+      });
+      parsedBmap=bmLines.join('\n');
+    }
+    var ra=rs.split(/[,;\s]+/).map(function(s){return s.trim();}).filter(Boolean).map(function(s){if(s.startsWith('0x')||s.startsWith('0X'))return s.toLowerCase();var n=parseInt(s);return isNaN(n)?s:'0x'+n.toString(16);});
+    if(!ra.length)ra=['0x01','0x03'];
+    if(ws&&!ws.startsWith('0x')){var wn=parseInt(ws);if(!isNaN(wn))ws='0x'+wn.toString(16);}
+    if(sec&&sec!=='level1'&&sec!=='level_eol'){if(sec.includes('eol'))sec='level_eol';else if(sec.includes('1')||sec.includes('level'))sec='level1';else sec='';}
+    if(dv&&!dv.startsWith('0x')){var dn=parseInt(dv);if(!isNaN(dn))dv='0x'+dn.toString(16).padStart(2,'0');}
+    // Determine service: 2F if IOControl session filled, else 22/2E
+    var svc='22_2E';
+    var bmap=parsedBmap||'';
+    if(ioCtrlCol>=0){
+      var ioSess=String(row[ioCtrlCol]||'').trim();
+      if(ioSess&&ioSess!=='NA'&&ioSess!=='na'&&ioSess!==''){
+        svc='2F';
+        ws=ioSess;
+        ra=[];
+      }
+    }
+    addRow({did:did,name:nm,len:isNaN(parseInt(ln))?'1':parseInt(ln).toString(),
+      readSessions:ra,writeSess:ws,sec:sec,defVal:dv,svc:svc,bmap:bmap,
+      minVal:parsedMin,maxVal:parsedMax});imp++;
+  });
+  toast('Imported '+imp+' DIDs'+(skipped?' ('+skipped+' struck-through skipped)':''),'ok');updCnt();
+}
+function gv(id){var e=document.getElementById(id);return e?e.value:'';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function getSess(){
+  var s=[{val:g('ssDef')||'0x01',label:'Default'},{val:g('ssProg')||'0x02',label:'Prog'},{val:g('ssExt')||'0x03',label:'Ext'}];
+  var e=g('ssEol');if(e)s.push({val:e,label:'EOL'});return s;
+}
+
+function delRow(id){DR=DR.filter(function(d){return d!==id;});var r=document.getElementById('rw'+id);if(r)r.remove();updCnt();}
+function validateFormula(inp){
+  var v = inp.value.trim();
+  if(/\(-seed\)/.test(v) || /^-seed/.test(v)){
+    inp.style.borderColor = 'var(--a5)';
+    inp.title = 'WARNING: (-seed) is negation = (~seed)+1. Use (~seed) for bitwise NOT.';
+  } else {
+    inp.style.borderColor = '';
+    inp.title = '';
+  }
+  // Live preview: evaluate formula with test seed
+  try {
+    var seed = 0xC5E8C5E8;
+    var jsFormula = v.replace(/~/g,'~').replace(/0x/gi,'0x');
+    // Safe eval: replace 'seed' with actual value
+    var evalStr = jsFormula.replace(/\bseed\b/g, '(0xC5E8C5E8>>>0)');
+    var result = (new Function('return (('+evalStr+')>>>0)'))();
+    var hex = '0x' + result.toString(16).toUpperCase().padStart(8,'0');
+    var prev = document.getElementById('eolKeyPreview');
+    if(prev) prev.textContent = hex;
+  } catch(e) {
+    var prev = document.getElementById('eolKeyPreview');
+    if(prev) prev.textContent = 'invalid formula';
+  }
+}
+function updCnt(){var e=document.getElementById('didcnt');if(e)e.textContent=DR.length?'('+DR.length+' DIDs)':'';}
+// Generate default byte order string based on data length
+// 1 byte -> "aa", 2 bytes -> "aa bb", 3 bytes -> "aa bb cc", etc.
+var BYTE_LABELS = ['aa','bb','cc','dd','ee','ff','gg','hh','ii','jj','kk','ll','mm','nn','oo','pp'];
+function getBorderDefault(len){
+  var n=parseInt(len)||1;
+  return BYTE_LABELS.slice(0,n).join(' ');
+}
+function updateBorderHint(inp){
+  // Just validate — user typed their own order like "aa" or "aa bb cc"
+  var val=inp.value.trim().toLowerCase();
+  var labels=val.split(/\s+/).filter(Boolean);
+  inp.style.borderColor=labels.length>0?'var(--a2)':'var(--a5)';
+}
+function onDiagTypeChange(sel){
+  var row = sel.closest('tr'); if(!row) return;
+  var isEol = sel.value === 'eol';
+  var tds = row.cells;
+  // Grey out Read sessions, Write sess for EOL (session handled by EOL entry sequence)
+  if(tds[3]){tds[3].style.opacity=isEol?'0.25':'1';tds[3].style.pointerEvents=isEol?'none':'auto';}
+  if(tds[4]){tds[4].style.opacity=isEol?'0.25':'1';tds[4].style.pointerEvents=isEol?'none':'auto';}
+  // Also auto-set security to level_eol if EOL selected
+  var secEl = row.querySelector('[data-f="sec"]');
+  if(isEol && secEl && !secEl.value) secEl.value = 'level_eol';
+}
+function onSvcChange(sel){
+  var row=sel.closest('tr');if(!row)return;
+  var is2F=sel.value==='2F', is31=sel.value==='31';
+  var bd=row.querySelector('[data-f="bmap"]');
+  if(bd) bd.parentElement.style.display=is2F?'block':'none';
+  // Auto-populate byte order from Len field when switching to 2F
+  if(is2F){
+    var lenEl=row.querySelector('[data-f="len"]');
+    var borderEl=row.querySelector('[data-f="border"]');
+    if(lenEl&&borderEl&&!borderEl.value.trim()){
+      borderEl.value=getBorderDefault(lenEl.value||1);
+    }
+  }
+  var is22ro = sel.value==='22';
+  var is22_2E = sel.value==='22_2E';
+  var tds=row.cells;
+  // Show warning on Write Sess cell if 22/2E selected but no write session filled
+  var wsTd = tds[4];
+  if(wsTd) {
+    var wsInput = wsTd.querySelector('input');
+    if(wsInput) {
+      if(is22_2E && !wsInput.value.trim()){
+        wsTd.title = 'Fill Write Sess for 22/2E — leave blank only for read-only DID (use 22 service instead)';
+        wsTd.style.outline = '1px dashed var(--a5)';
+      } else {
+        wsTd.title = '';
+        wsTd.style.outline = '';
+      }
+    }
+  }
+  if(tds[3]){tds[3].style.opacity=(is2F||is31)?'0.25':'1';tds[3].style.pointerEvents=(is2F||is31)?'none':'auto';}
+  // Grey out write sess, security, default, min, max for read-only '22' service
+  if(tds[4]){tds[4].style.opacity=is22ro?'0.3':'1';tds[4].style.pointerEvents=is22ro?'none':'auto';}
+  if(tds[5]){tds[5].style.opacity=is22ro?'0.3':'1';tds[5].style.pointerEvents=is22ro?'none':'auto';}
+  if(tds[6]){tds[6].style.opacity=(is2F||is22ro)?'0.3':'1';}
+  if(tds[7]){tds[7].style.opacity=(is2F||is22ro)?'0.3':'1';}
+  if(tds[8]){tds[8].style.opacity=(is2F||is22ro)?'0.3':'1';}
+}
+function addRow(data){
+  data=data||{};
+  var id='r'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+  DR.push(id);
+  var ss=getSess(),rs=data.readSessions||['0x01','0x03'];
+  var cb=ss.map(function(s){var ck=rs.indexOf(s.val)>=0?'checked':'';return '<label><input type="checkbox" data-sess="'+s.val+'" class="rs'+id+'" '+ck+' onchange="updateRowEolBadge(\''+id+'\')"'+'> '+s.label+'</label>';}).join('');
+  var row=document.createElement('tr');row.id='rw'+id;
+  row.innerHTML=
+    '<td><input data-f="did" value="'+(data.did||'')+'" placeholder="0x4601" style="width:72px"></td>'+
+    '<td><input data-f="name" value="'+(data.name||'')+'" placeholder="DID_NAME" style="width:148px"></td>'+
+    '<td><input data-f="len" value="'+(data.len||'1')+'" type="number" min="1" max="128" style="width:50px"></td>'+
+    '<td><div class="scbs">'+cb+'</div></td>'+
+    '<td><input data-f="ws" value="'+(data.writeSess||'')+'" placeholder="0x03 or blank" style="width:86px"></td>'+
+    '<td><select data-f="sec" style="width:86px"><option value="">none</option>'+
+    '<option value="level1"'+(data.sec==='level1'?' selected':'')+'>level1</option>'+
+    '<option value="level_eol"'+(data.sec==='level_eol'?' selected':'')+'>level_eol</option>'+
+    '</select></td>'+
+    '<td><input data-f="def" value="'+(data.defVal||'')+'" placeholder="0x00" style="width:62px"></td>'+
+    '<td><input data-f="min" value="'+(data.minVal||'')+'" placeholder="0x00" style="width:55px"></td>'+
+    '<td><input data-f="max" value="'+(data.maxVal||'')+'" placeholder="0xFF" style="width:55px"></td>'+
+    '<td>'+
+        '<select data-f="svc" style="width:80px" onchange="onSvcChange(this)">'+
+      '<option value="22_2E"'+(data.svc==="22_2E"?' selected':'')+'>22/2E</option>'+
+      '<option value="22"'+(data.svc==="22"?' selected':'')+'>22 (read only)</option>'+
+      '<option value="2F"'+(data.svc==="2F"?' selected':'')+'>2F IOCtrl</option>'+
+      '<option value="31"'+(data.svc==="31"?' selected':'')+'>31 Routine</option>'+
+    '</select>'+
+    '<div id="bmap_'+id+'" style="display:'+(data.svc==="2F"?'block':'none')+'">'+
+      '<div style="font-size:9px;color:#888;margin-bottom:2px">Byte order (e.g. aa for 1B, aa bb for 2B):</div>'+
+      '<input data-f="border" value="'+(data.borderVal||getBorderDefault(data.len||1))+'" placeholder="aa bb" style="width:80px;font-size:10px;margin-bottom:3px" oninput="updateBorderHint(this)">'+
+      '<div style="font-size:9px;color:#06b6d4;margin-bottom:2px">Frame: 2F DID 03 [bytes in order above]</div>'+
+      '<input data-f="bmap" value=""  placeholder="aa_Bit_1->ABS" style="width:155px;font-size:10px;display:block;margin-top:2px">'+
+    '</div>'+
+    '</td>'+
+    '<td><button class="btn btn-x btn-sm" onclick="delRow(\''+id+'\')">&#10005;</button></td>';
+  document.getElementById('dbody').appendChild(row);updCnt();
+}
+
+function delRow(id){DR=DR.filter(function(d){return d!==id;});var r=document.getElementById('rw'+id);if(r)r.remove();updCnt();}
+function validateFormula(inp){
+  var v = inp.value.trim();
+  if(/\(-seed\)/.test(v) || /^-seed/.test(v)){
+    inp.style.borderColor = 'var(--a5)';
+    inp.title = 'WARNING: (-seed) is negation = (~seed)+1. Use (~seed) for bitwise NOT.';
+  } else {
+    inp.style.borderColor = '';
+    inp.title = '';
+  }
+  // Live preview: evaluate formula with test seed
+  try {
+    var seed = 0xC5E8C5E8;
+    var jsFormula = v.replace(/~/g,'~').replace(/0x/gi,'0x');
+    // Safe eval: replace 'seed' with actual value
+    var evalStr = jsFormula.replace(/\bseed\b/g, '(0xC5E8C5E8>>>0)');
+    var result = (new Function('return (('+evalStr+')>>>0)'))();
+    var hex = '0x' + result.toString(16).toUpperCase().padStart(8,'0');
+    var prev = document.getElementById('eolKeyPreview');
+    if(prev) prev.textContent = hex;
+  } catch(e) {
+    var prev = document.getElementById('eolKeyPreview');
+    if(prev) prev.textContent = 'invalid formula';
+  }
+}
+function updCnt(){var e=document.getElementById('didcnt');if(e)e.textContent=DR.length?'('+DR.length+' DIDs)':'';}
+
+
+function hexBytes(did){
+  var h=did.replace('0x','').replace('0X','').toUpperCase().padStart(4,'0');
+  return [h.slice(0,2),h.slice(2,4)];
+}
+function totalLen(dataLen){ return 1+2+dataLen; }
+
+
+function buildConfig(){
+  var eolSess=g('ssEol');
+  var cfg={
+    project_name:g('pName')||'MY_PROJECT',
+    vehicle_brand:g('pBrand'),ecu_variant:g('pEcu'),engineer:g('pEng'),
+    can_channel:g('canCh'),tx_id:g('txId')||'0x7F6',rx_id:g('rxId')||'0x7FE',
+    sessions:{default:g('ssDef')||'0x01',extended:g('ssExt')||'0x03',programming:g('ssProg')||'0x02'},
+    eol_entry:{activation_did:g('eolActDid')||null,activation_val:g('eolActVal')||'0x01'},
+    security:{level1:{seed_request_subfunction:g('s1seed')||'0x01',send_key_subfunction:g('s1key')||'0x02',
+      algorithm:A1,exe_path:A1==='EXE'?(g('s1exe')||'.\\\\AES_CAPL.exe'):null,
+      key_formula:A1==='XOR'?(g('s1form')||'(~seed)+0x56'):null}},
+    dids:[]};
+  if(eolSess){
+    cfg.sessions.eol=eolSess;
+    cfg.security.level_eol={seed_request_subfunction:g('eolseed')||'0x61',
+      send_key_subfunction:g('eolkey')||'0x62',algorithm:AE,
+      exe_path:AE==='EXE'?(g('eolexe')||'.\\\\AES_EOL.exe'):null,
+      key_formula:AE==='XOR'?(g('eolform')||'(~seed)+0x56'):null};
+  }
+  DR.forEach(function(id){
+    var row=document.getElementById('rw'+id);
+    if(!row)return;
+    function rf(f){var e=row.querySelector('[data-f="'+f+'"]');return e?e.value.trim():'';}
+    var didV=rf('did'); if(!didV)return;
+    var rs=[];
+    var cbEls=row.querySelectorAll('input[type="checkbox"]');
+    for(var ci=0;ci<cbEls.length;ci++){if(cbEls[ci].checked)rs.push(cbEls[ci].dataset.sess);}
+    var wsV=rf('ws'), secV=rf('sec'), lenV=parseInt(rf('len'))||1;
+      if(wsV&&wsV.toUpperCase()==='NA') wsV='';
+    var defV=rf('def'), minV=rf('min'), maxV=rf('max');
+    cfg.dids.push({did:didV, name:rf('name'), data_length:lenV,
+      read_sessions:rs,
+      write_sessions:wsV?wsV.split(/[,\s]+/).map(function(x){return x.trim();}).filter(function(x){return x.length>0;}):[],
+      write_support:wsV!==''&&wsV.toUpperCase()!=='NA',
+      write_security_level:secV||null,
+      default_value:defV||null,
+      min_value:minV!==''?minV:null,
+      max_value:maxV!==''?maxV:null,
+      service:rf('svc')||'22_2E',
+      bmap:rf('bmap')||'',
+      byte_order:rf('border')||'',
+      diag_type:rf('diagtype')||'normal'});
+  });
+  return cfg;
+}
+
+function buildTestcases(cfg) {
+  var tcs = []; var idx = 0;
+  var sess = cfg.sessions;
+  var all = [sess.default, sess.programming, sess.extended];
+  if (sess.eol) all.push(sess.eol);
+
+  function sName(v) {
+    var m = {[sess.default]:'Default',[sess.programming]:'Prog',[sess.extended]:'Ext'};
+    if (sess.eol) m[sess.eol] = 'EOL';
+    return m[v] || v;
+  }
+
+  // ── EOL Entry Sequence (once before all EOL DIDs) ─────────────────────
+  var hasEolDids = cfg.dids.some(function(d){
+    var rs=(d.read_sessions||[]).map(function(s){return s.toLowerCase();});
+    var ws=(d.write_sessions||[]).reduce(function(acc,s){
+      s.split(/[,\s]+/).forEach(function(p){p=p.trim().toLowerCase();if(p)acc.push(p);});
+      return acc;
+    },[]);
+    return (sess.eol && (rs.indexOf(sess.eol.toLowerCase())>=0 || ws.indexOf(sess.eol.toLowerCase())>=0));
+  });
+
+  if(sess.eol && hasEolDids){
+    var eolEntry = cfg.eol_entry || {};
+    var actDid = eolEntry.activation_did || null;
+    var actVal = eolEntry.activation_val || '0x01';
+
+    // Step 1: 10 03 Extended session
+    tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+      name:'EOL ENTRY: Step1 → Set Extended session (10 03)'});
+    // Step 2: 10 60 EOL session
+    tcs.push({id:idx++, type:'session_switch', session:sess.eol,
+      name:'EOL ENTRY: Step2 → Set EOL session (10 '+sess.eol+')'});
+    // Step 3+4: Security unlock (27 61 seed → 27 62 key) — uses level_eol
+    if(cfg.security && cfg.security.level_eol){
+      tcs.push({id:idx++, type:'security_unlock', level:'level_eol',
+        name:'EOL ENTRY: Step3+4 → Security unlock level_eol (27 61/62)'});
+    }
+    // Step 5: 2E actDid actVal — EOL activation write
+    if(actDid){
+      var actBytes = hexBytes(actDid);
+      var actHi=actBytes[0], actLo=actBytes[1];
+      var actValHex=(actVal||'0x01').replace('0x','').replace('0X','').toUpperCase().padStart(2,'0');
+      tcs.push({id:idx++, type:'eol_activate', did_hi:actHi, did_lo:actLo, write_val:actValHex,
+        name:'EOL ENTRY: Step5 → 2E '+actHi+' '+actLo+' '+actValHex+' (EOL activation write → POS 6E)'});
+    }
+    // Step 6: 11 01 ECU hard reset
+    tcs.push({id:idx++, type:'ecu_reset', reset_type:'0x01',
+      name:'EOL ENTRY: Step6 → 11 01 ECU hard reset (wait for reboot)'});
+    // Step 7: 10 03 Extended session again
+    tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+      name:'EOL ENTRY: Step7 → Set Extended session again (10 03)'});
+    // Step 8: 10 60 EOL session again — now fully in EOL
+    tcs.push({id:idx++, type:'session_switch', session:sess.eol,
+      name:'EOL ENTRY: Step8 → Set EOL session again (10 '+sess.eol+') — READY FOR EOL DIDs'});
+  }
+
+  cfg.dids.forEach(function(did) {
+    var svc = did.service || '22_2E';
+
+    // ── 2F InputOutputControlByIdentifier ──────────────────────────────────
+    // 2F: NO read tests. Only IOControl in the specified write_sessions (typically 0x03 Ext)
+    // Format: 2F DID_HI DID_LO 03(shortTermAdjustment) BYTE1 [BYTE2...]
+    if (svc === '2F') {
+      var hb2f=hexBytes(did.did),hi2f=hb2f[0],lo2f=hb2f[1];
+      var wsec2f=did.write_security_level||'';
+      // 2F: always uses Extended session — ignore read_sessions and write_sessions fields
+      // User just needs to set Service=2F and fill the bmap
+      var ws2f=[sess.extended.toLowerCase()];
+      var totalBytes2f=did.data_length||1;
+      // Min/max from config (set by range column import or manual Min/Max fields)
+      var minV2f=(did.min_value!==null&&did.min_value!==undefined&&did.min_value!=='')?String(did.min_value).trim():null;
+      var maxV2f=(did.max_value!==null&&did.max_value!==undefined&&did.max_value!=='')?String(did.max_value).trim():null;
+
+      // Bmap normalizer: accepts any of these formats from SRD copy-paste:
+      //   "aa_Bit_1 -> ABS Indication"  or  "aa:bit1=ABS"  or  "aa_Bit1->ABS"
+      // Normalize to internal format: [{byteIdx, bitNum, label, mask}]
+      function parseBmap(bmapStr) {
+        var bits=[];
+        if(!bmapStr||bmapStr.trim()==='') return bits;
+        // Byte label to index mapping — format is bb aa (bb=byte0 sent first, aa=byte1)
+        // In 2F frame: 2F DID_HI DID_LO 03 bb_byte aa_byte
+        // So bb maps to data byte index 0, aa maps to data byte index 1
+        // Byte order string e.g. "aa", "aa bb", "bb aa", "aa bb cc"
+        // Each label gets its position index from left to right
+        var bOrderStr = (did.byte_order || getBorderDefault(did.data_length||1)).trim().toLowerCase();
+        var bOrderLabels = bOrderStr.split(/\s+/).filter(Boolean);
+        var byteOrder={};
+        bOrderLabels.forEach(function(lbl,i){ byteOrder[lbl]=i; });
+        // Fill any missing standard labels with sequential indices after the defined ones
+        var BLBL=['aa','bb','cc','dd','ee','ff','gg','hh'];
+        var nextIdx=bOrderLabels.length;
+        BLBL.forEach(function(lbl){ if(byteOrder[lbl]===undefined){ byteOrder[lbl]=nextIdx++; } });
+        // Split on EITHER: newlines, semicolons, OR on the pattern "  xx_Bit" (space before byte prefix)
+        // This handles copy-pasted SRD text on one line like "aa_Bit_1 -> ABS aa_Bit_0 -> MIL bb_Bit_6..."
+        var normalized = bmapStr
+          .replace(/([a-hA-H]{2})[_\s]+[Bb]it/g, '\n$1_Bit')  // normalize to newline before each entry
+          .replace(/;/g, '\n');
+        var lines = normalized.split(/\n+/);
+        lines.forEach(function(line){
+          line=line.trim(); if(!line)return;
+          // Match: aa_Bit_N -> Label  OR  aa_BitN->Label  OR  aa:bitN=Label
+          var m=line.match(/([a-zA-Z]{2})[_:\s]*[Bb]it[_]?(\d+)\s*[->=:\s]+(.+)/);
+          if(!m) return;
+          var byteLabel=m[1].toLowerCase();
+          var byteIdx=(byteOrder[byteLabel]!==undefined)?byteOrder[byteLabel]:0;
+          var bitNum=parseInt(m[2]);
+          // Clean up label: remove trailing arrow/equals garbage
+          var label=m[3].trim().replace(/[->=:]+.*$/, '').trim();
+          if(!label) label=m[3].trim();
+          bits.push({byteIdx:byteIdx,bitNum:bitNum,label:label,mask:1<<bitNum});
+        });
+        return bits;
+      }
+
+      var bmapBits=parseBmap(did.bmap||'');
+      var hasBmap=bmapBits.length>0;
+
+      // ws2f always set to extended above
+
+      ws2f.forEach(function(wss){
+        // Enter the correct session
+        if(wss.toLowerCase()!==sess.default.toLowerCase())
+          tcs.push({id:idx++,type:'session_switch',session:sess.default,
+            name:'PRECOND Return to Default (before '+sName(wss)+')'});
+        tcs.push({id:idx++,type:'session_switch',session:wss,
+          name:'PRECOND Set '+sName(wss)+' session (2F IOControl)'});
+
+        // Security unlock if required
+        if(wsec2f){
+          tcs.push({id:idx++,type:'ioctrl_no_unlock',did_hi:hi2f,did_lo:lo2f,
+            ctrl_bytes:[0,0],ctrl_val:'00 00',total_bytes:totalBytes2f,
+            name:'2F '+hi2f+' '+lo2f+' 03 [00 00] WITHOUT unlock → NEG 7F 2F 33'});
+          tcs.push({id:idx++,type:'security_unlock',level:wsec2f,
+            name:'SECURITY unlock '+wsec2f});
+        }
+
+        if(hasBmap){
+          // ALL bits OFF (0x00 per byte) → POS 6F
+          var allOffVal=new Array(totalBytes2f).fill(0);
+          var allOffHex=allOffVal.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+          tcs.push({id:idx++,type:'ioctrl_adjust',did_hi:hi2f,did_lo:lo2f,
+            ctrl_bytes:allOffVal,ctrl_val:allOffHex,total_bytes:totalBytes2f,
+            name:'2F '+hi2f+' '+lo2f+' 03 ['+allOffHex+'] ALL_OFF → POS 6F'});
+
+          // Each bit individually ON
+          bmapBits.forEach(function(bit){
+            var val=new Array(totalBytes2f).fill(0);
+            if(bit.byteIdx<totalBytes2f) val[bit.byteIdx]=bit.mask&0xFF;
+            var hexVal=val.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+            tcs.push({id:idx++,type:'ioctrl_adjust',did_hi:hi2f,did_lo:lo2f,
+              ctrl_bytes:val,ctrl_val:hexVal,total_bytes:totalBytes2f,
+              name:'2F '+hi2f+' '+lo2f+' 03 ['+hexVal+'] '+bit.label.replace(/\s+/g,'_')+'(bit'+bit.bitNum+'=1) → POS 6F'});
+          });
+
+          // ALL bits ON (0xFF per byte)
+          var allOnVal=new Array(totalBytes2f).fill(0xFF);
+          var allOnHex=allOnVal.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+          tcs.push({id:idx++,type:'ioctrl_adjust',did_hi:hi2f,did_lo:lo2f,
+            ctrl_bytes:allOnVal,ctrl_val:allOnHex,total_bytes:totalBytes2f,
+            name:'2F '+hi2f+' '+lo2f+' 03 ['+allOnHex+'] ALL_ON → POS 6F'});
+
+        } else {
+          // No bmap: range-based IOControl tests
+          // Parse min/max from config (hex strings like "0x00", "0xFF")
+          var ioMinRaw = minV2f ? parseInt(minV2f, 16) : 0;
+          var ioMaxRaw = maxV2f ? parseInt(maxV2f, 16) : (Math.pow(256, totalBytes2f) - 1);
+          var ioRange  = ioMaxRaw - ioMinRaw;
+
+          // Helper: convert integer to byte array (big-endian, totalBytes2f bytes)
+          function intToBytes(val, nbytes) {
+            var bytes = new Array(nbytes).fill(0);
+            for(var bi=nbytes-1; bi>=0; bi--) { bytes[bi]=val&0xFF; val>>=8; }
+            return bytes;
+          }
+          function bytesToHex(bytes) {
+            return bytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+          }
+          function mkIOAdj(val, label) {
+            var bytes = intToBytes(val, totalBytes2f);
+            var hex = bytesToHex(bytes);
+            tcs.push({id:idx++,type:'ioctrl_adjust',did_hi:hi2f,did_lo:lo2f,
+              ctrl_bytes:bytes,ctrl_val:hex,total_bytes:totalBytes2f,
+              name:'2F '+hi2f+' '+lo2f+' 03 ['+hex+'] '+label+' → POS 6F'});
+          }
+          function mkIOOor(val, label) {
+            var bytes = intToBytes(val & (Math.pow(256,totalBytes2f)-1), totalBytes2f);
+            var hex = bytesToHex(bytes);
+            tcs.push({id:idx++,type:'ioctrl_oor',did_hi:hi2f,did_lo:lo2f,
+              ctrl_bytes:bytes,ctrl_val:hex,total_bytes:totalBytes2f,
+              name:'2F '+hi2f+' '+lo2f+' 03 ['+hex+'] '+label+' → NEG 7F 2F 31 (OOR)'});
+          }
+
+          // ── Positive test cases ──────────────────────────────────────
+          mkIOAdj(ioMinRaw, 'MIN(0x'+ioMinRaw.toString(16).toUpperCase().padStart(2*totalBytes2f,'0')+')');
+          if(ioRange > 3) {
+            mkIOAdj(Math.floor(ioMinRaw + ioRange*0.25), '25%(0x'+Math.floor(ioMinRaw+ioRange*0.25).toString(16).toUpperCase()+')');
+            mkIOAdj(Math.floor(ioMinRaw + ioRange*0.50), '50%(0x'+Math.floor(ioMinRaw+ioRange*0.50).toString(16).toUpperCase()+')');
+            mkIOAdj(Math.floor(ioMinRaw + ioRange*0.75), '75%(0x'+Math.floor(ioMinRaw+ioRange*0.75).toString(16).toUpperCase()+')');
+          }
+          mkIOAdj(ioMaxRaw, 'MAX(0x'+ioMaxRaw.toString(16).toUpperCase().padStart(2*totalBytes2f,'0')+')');
+
+          // ── Negative: OOR below min ──────────────────────────────────
+          if(ioMinRaw > 0) {
+            mkIOOor(ioMinRaw - 1, 'below MIN (0x'+( ioMinRaw-1).toString(16).toUpperCase()+')');
+          }
+          // ── Negative: OOR above max ──────────────────────────────────
+          var maxPossible = Math.pow(256, totalBytes2f) - 1;
+          if(ioMaxRaw < maxPossible) {
+            mkIOOor(ioMaxRaw + 1, 'above MAX (0x'+(ioMaxRaw+1).toString(16).toUpperCase()+')');
+          }
+        }
+
+        // returnControlToECU at end to restore ECU control
+        tcs.push({id:idx++,type:'ioctrl_returnctl',did_hi:hi2f,did_lo:lo2f,total_bytes:totalBytes2f,
+          name:'2F '+hi2f+' '+lo2f+' 01 returnControlToECU → NEG 7F 2F 31 (conditionsNotCorrect)'});
+
+        // ── NRC 0x13: wrong length tests ─────────────────────────────────
+        // Too short: send 2F DID_HI DID_LO only (3 bytes, missing controlParam) → NEG 7F 2F 13
+        tcs.push({id:idx++,type:'ioctrl_nrc13_short',did_hi:hi2f,did_lo:lo2f,
+          name:'2F '+hi2f+' '+lo2f+' (len=3, missing ctrlParam) → NEG 7F 2F 13 (incorrectMessageLength)'});
+        // Too long: correct frame + 1 extra byte → NEG 7F 2F 13
+        tcs.push({id:idx++,type:'ioctrl_nrc13_long',did_hi:hi2f,did_lo:lo2f,total_bytes:totalBytes2f,
+          name:'2F '+hi2f+' '+lo2f+' 03 [data+extra] (too long) → NEG 7F 2F 13 (incorrectMessageLength)'});
+        // ── NRC 0x31: invalid control parameter ──────────────────────────
+        // controlParam 0x05 is not defined → NEG 7F 2F 31
+        tcs.push({id:idx++,type:'ioctrl_nrc31_ctrl',did_hi:hi2f,did_lo:lo2f,total_bytes:totalBytes2f,
+          name:'2F '+hi2f+' '+lo2f+' 05 00.. (undefined ctrlParam=05) → NEG 7F 2F 31 (requestOutOfRange)'});
+      });
+
+      // ── NRC 0x31: 2F in wrong session (Default) → NEG 7F 2F 31 ─────────
+      tcs.push({id:idx++,type:'session_switch',session:sess.default,
+        name:'PRECOND Return to Default (2F session NRC test)'});
+      tcs.push({id:idx++,type:'ioctrl_wrong_sess',did_hi:hi2f,did_lo:lo2f,total_bytes:totalBytes2f,
+        session:sess.default,
+        name:'2F '+hi2f+' '+lo2f+' 01 in Default → NEG 7F 2F 7F (serviceNotSupportedInActiveSession)'});
+      return;
+    }
+
+    // ── 31 RoutineControl ──────────────────────────────────────────────────
+    if (svc === '31') {
+      var hb31=hexBytes(did.did),hi31=hb31[0],lo31=hb31[1];
+      var wsec31=did.write_security_level||'';
+      var ws31=(did.write_sessions||[]).reduce(function(acc,s){
+      s.split(/[,\s]+/).forEach(function(p){p=p.trim().toLowerCase();if(p)acc.push(p);});
+      return acc;
+    },[]);
+      if(ws31.length>0){ws31.forEach(function(wss){
+        if(wss.toLowerCase()!==sess.default.toLowerCase())
+          tcs.push({id:idx++,type:'session_switch',session:sess.default,name:'PRECOND Return to Default'});
+        tcs.push({id:idx++,type:'session_switch',session:wss,name:'PRECOND Set '+sName(wss)+' session'});
+        if(wsec31){
+          tcs.push({id:idx++,type:'routine_no_unlock',did_hi:hi31,did_lo:lo31,
+            name:'31 01 '+hi31+' '+lo31+' WITHOUT unlock → NEG 7F 31 33'});
+          if(wsec31==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
+            tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+              name:'PRECOND Switch to Extended for Security Unlock'});
+            tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
+            tcs.push({id:idx++, type:'session_switch', session:wss,
+              name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
+          } else {
+            tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
+          }
+        }
+        tcs.push({id:idx++,type:'routine_results_before_start',did_hi:hi31,did_lo:lo31,
+          name:'31 03 '+hi31+' '+lo31+' requestResults BEFORE start → NEG 7F 31 24'});
+        tcs.push({id:idx++,type:'routine_start',did_hi:hi31,did_lo:lo31,
+          name:'31 01 '+hi31+' '+lo31+' startRoutine → POS 71 01'});
+        tcs.push({id:idx++,type:'routine_results',did_hi:hi31,did_lo:lo31,
+          name:'31 03 '+hi31+' '+lo31+' requestRoutineResults → POS 71 03'});
+        tcs.push({id:idx++,type:'routine_stop',did_hi:hi31,did_lo:lo31,
+          name:'31 02 '+hi31+' '+lo31+' stopRoutine → POS 71 02'});
+      });}
+      // Wrong session
+      var unsupSess31=[sess.default,sess.extended].filter(function(s){return ws31.indexOf(s.toLowerCase())<0;});
+      if(unsupSess31.length>0){
+        var s0=unsupSess31[0];
+        if(s0.toLowerCase()!==sess.default.toLowerCase())
+          tcs.push({id:idx++,type:'session_switch',session:sess.default,name:'PRECOND Return to Default'});
+        tcs.push({id:idx++,type:'session_switch',session:s0,name:'PRECOND Set '+sName(s0)+' session'});
+        tcs.push({id:idx++,type:'routine_wrong_session',did_hi:hi31,did_lo:lo31,
+          name:'31 01 '+hi31+' '+lo31+' in '+sName(s0)+' → NEG 7F 31 31'});
+      }
+      return;
+    }
+
+    var hb = hexBytes(did.did);
+    var hi = hb[0], lo = hb[1];
+    var tlen = totalLen(did.data_length);
+    var mf = tlen > 7;
+    var rs = (did.read_sessions||[]).map(function(s){ return s.toLowerCase(); });
+    var ws = (did.write_sessions||[]).reduce(function(acc,s){
+      // split any element that contains comma-separated sessions e.g. "0x02, 0x03"
+      s.split(/[,\s]+/).forEach(function(p){p=p.trim().toLowerCase();if(p)acc.push(p);});
+      return acc;
+    },[]);
+    var wsec = did.write_security_level || '';
+    // svc='22' = read-only, force no write regardless of write_sessions field
+    // Determine EOL status first (needed for ws auto-fill)
+    var didIsEol = sess.eol && rs.indexOf(sess.eol.toLowerCase()) >= 0;
+
+    // For EOL DIDs with 22/2E service: auto-set write session to EOL if empty
+    if(didIsEol && ws.length === 0 && svc === '22_2E') {
+      ws = [sess.eol.toLowerCase()];
+    }
+    var wok = (svc !== '22') && ws.length > 0;
+
+    // Only generate read TCs if DID has at least one readable session
+    if(rs.length > 0) all.forEach(function(s, sidx) {
+      var isEolSess = sess.eol && s.toLowerCase()===sess.eol.toLowerCase();
+
+      if (!isEolSess) {
+        // Non-EOL session: do normal session switch
+        if (s.toLowerCase() !== sess.default.toLowerCase()) {
+          tcs.push({id:idx++, type:'session_switch', session:sess.default,
+            name:'PRECOND Return to Default (before '+sName(s)+')'});
+        }
+        tcs.push({id:idx++, type:'session_switch', session:s,
+          name:'PRECOND Set '+sName(s)+' session'});
+      } else {
+        // EOL session in the main read loop
+        // For EOL DIDs: the POS confirm after each NEG already handles re-entry
+        // So skip the EOL entry in the main loop entirely — avoid duplicate re-entry
+        if(!didIsEol) {
+          // Non-EOL DID trying EOL session: add entry
+          tcs.push({id:idx++, type:'session_switch', session:sess.default,
+            name:'PRECOND Return to Default (before EOL)'});
+          tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+            name:'PRECOND Set Ext (step to EOL)'});
+          tcs.push({id:idx++, type:'session_switch', session:sess.eol,
+            name:'PRECOND Set EOL session (10 '+sess.eol+')'});
+        }
+        // For EOL DIDs: POS confirm block (after each NEG) already handles re-entry
+        // Skip here to avoid duplicate 10 01 → 10 03 → 10 60 sequence
+      }
+      if (rs.indexOf(s.toLowerCase()) >= 0)
+        tcs.push({id:idx++, type:'read_pos', did_hi:hi, did_lo:lo, total_len:tlen, mf:mf,
+          session:s, default_value:did.default_value,
+          name:'22 '+hi+' '+lo+' in '+sName(s)+' → POS 62 TotalLen='+tlen+(mf?'[MF]':'')});
+      else {
+        tcs.push({id:idx++, type:'read_neg', did_hi:hi, did_lo:lo, session:s,
+          name:'22 '+hi+' '+lo+' in '+sName(s)+' → NEG 7F 22 31'});
+        // For EOL DIDs: after each NEG test, re-enter EOL and confirm POS
+        if(didIsEol && !isEolSess && sess.eol) {
+          tcs.push({id:idx++, type:'session_switch', session:sess.default,
+            name:'PRECOND Return to Default (re-enter EOL after NEG test)'});
+          tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+            name:'PRECOND Set Ext (step to EOL)'});
+          tcs.push({id:idx++, type:'session_switch', session:sess.eol,
+            name:'PRECOND Set EOL session (10 '+sess.eol+')'});
+          tcs.push({id:idx++, type:'read_pos', did_hi:hi, did_lo:lo, total_len:tlen, mf:mf,
+            session:sess.eol, default_value:did.default_value,
+            name:'22 '+hi+' '+lo+' in EOL → POS 62 TotalLen='+tlen+' (confirm after NEG)'});
+        }
+      }
+    });
+
+    // NRC 0x13 for READ: wrong length (send only 2 bytes — SID+partial DID)
+    if (rs.length > 0) {
+      var rdSess = rs[0];
+      var rdSessIsEol = sess.eol && rdSess.toLowerCase()===sess.eol.toLowerCase();
+      if(rdSessIsEol && didIsEol && hasEolDids){
+        // EOL DID: already in EOL session from entry sequence — no switch needed
+      } else {
+        // Always return to Default first
+        tcs.push({id:idx++, type:'session_switch', session:sess.default, name:'PRECOND Return to Default (NRC test)'});
+        // For EOL session: must go Default → Extended → EOL
+        if(rdSessIsEol){
+          tcs.push({id:idx++, type:'session_switch', session:sess.extended, name:'PRECOND Set Ext (before EOL NRC test)'});
+        }
+        tcs.push({id:idx++, type:'session_switch', session:rdSess, name:'PRECOND Set '+sName(rdSess)+' (22 NRC 0x13 test)'});
+      }
+      tcs.push({id:idx++, type:'read_nrc13', did_hi:hi, did_lo:lo,
+        name:'22 '+hi+' (missing DID_LO, len=2) → NEG 7F 22 13 (incorrectMessageLength)'});
+    }
+    if (wok) {
+      // Parse min/max — use explicit check for null/undefined, NOT falsy
+      // because 0x00 is a valid min value and would be falsy with || operator
+      // ── Parse min/max supporting both single-byte (0-4) and multi-byte (FF FF FF...)
+      //    Single-byte: "0x00","0","4","0x04" → integer range, iterate all values
+      //    Multi-byte:  "FF FF FF" or "0xFF 0xFF" → byte array, just write min and max
+      var rawMin = (did.min_value !== null && did.min_value !== undefined && did.min_value !== '') ? String(did.min_value).trim() : null;
+      var rawMax = (did.max_value !== null && did.max_value !== undefined && did.max_value !== '') ? String(did.max_value).trim() : null;
+      var hasRange = (rawMin !== null && rawMax !== null);
+
+      // Parse a range value string into a byte array
+      function parseBytes(s) {
+        if(!s) return [];
+        // Remove 0x/0X prefixes and split on spaces, commas
+        var parts = s.replace(/0x/gi,'').split(/[\s,]+/).filter(function(p){return p.length>0;});
+        var result = [];
+        parts
+          .filter(function(p){ return /^[0-9A-Fa-f]+$/.test(p); })
+          .forEach(function(p) {
+            // If part is >2 hex chars (multi-byte value like FFFF), split into bytes
+            if(p.length > 2) {
+              // Pad to even length then split into 2-char chunks
+              var padded = p.length % 2 ? '0'+p : p;
+              for(var bi=0; bi<padded.length; bi+=2) {
+                result.push(parseInt(padded.slice(bi,bi+2), 16));
+              }
+            } else {
+              result.push(parseInt(p, 16));
+            }
+          });
+        return result;
+      }
+
+      var minBytesRaw = hasRange ? parseBytes(rawMin) : [];
+      var maxBytesRaw = hasRange ? parseBytes(rawMax) : [];
+      var dataLen = did.data_length || 1;
+      // effectiveDataLen = largest of: DID length field, min bytes count, max bytes count
+      // This handles case where user forgets to update Len field but provides full min/max
+      var effectiveDataLen = Math.max(dataLen, minBytesRaw.length, maxBytesRaw.length);
+      var isMultiByte = effectiveDataLen > 1;
+      // Now pad byte arrays to effectiveDataLen
+      var minBytes = minBytesRaw.slice();
+      var maxBytes = maxBytesRaw.slice();
+      while(minBytes.length < effectiveDataLen) minBytes.unshift(0);
+      while(maxBytes.length < effectiveDataLen) maxBytes.unshift(0xFF);
+      minBytes = minBytes.slice(-effectiveDataLen);
+      maxBytes = maxBytes.slice(-effectiveDataLen);
+      // For single-byte DIDs: iterate all values. For multi-byte: just write min and max patterns.
+      var minInt = isMultiByte ? null : (hasRange ? minBytes[0] : null);
+      var maxInt = isMultiByte ? null : (hasRange ? maxBytes[0] : null);
+
+      // Display strings
+      var minV = hasRange ? minBytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ') : null;
+      var maxV = hasRange ? maxBytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ') : null;
+
+      console.log('[NexDiag] DID range: dataLen='+dataLen+' isMultiByte='+isMultiByte+' minV='+minV+' maxV='+maxV+' minInt='+minInt+' maxInt='+maxInt);
+
+      // Write test value = default if set, else min, else all zeros
+      var defBytes = [];
+      if(did.default_value && did.default_value !== '') {
+        var dvStr = String(did.default_value).trim().toUpperCase();
+        // Skip non-hex default values like NA, Refer Annexure, FFFF (no 0x), etc.
+        if(dvStr !== 'NA' && dvStr !== '-' && !/[^0-9A-FX\s]/.test(dvStr)) {
+          defBytes = parseBytes(did.default_value);
+        }
+        if(defBytes.length > 0) {
+          while(defBytes.length < dataLen) defBytes.unshift(0);
+          defBytes = defBytes.slice(-dataLen);
+        }
+      }
+      var writeBytes = defBytes.length > 0 ? defBytes : (hasRange ? minBytes : new Array(dataLen).fill(0));
+      writeBytes = writeBytes.map(function(b){ return isNaN(b) ? 0 : b; });
+      var writeVal = writeBytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+
+      ws.forEach(function(wss) {
+        // For EOL DIDs in EOL write session: no session switch (already in EOL)
+        var isEolWrite = sess.eol && wss.toLowerCase()===sess.eol.toLowerCase();
+        var skipWriteSess = isEolWrite && hasEolDids && didIsEol;
+        if (!skipWriteSess) {
+          if (wss.toLowerCase() !== sess.default.toLowerCase()) {
+            tcs.push({id:idx++, type:'session_switch', session:sess.default,
+              name:'PRECOND Return to Default (required before session change)'});
+          }
+          tcs.push({id:idx++, type:'session_switch', session:wss,
+            name:'PRECOND Set '+sName(wss)+' session'});
+        }
+
+        // Helper to push a write TC with optional unlock
+        function pushWrite(tcType, val, posOrNeg, nrc) {
+          var hexVal = val.toString().replace('0x','').replace('0X','').padStart(2,'0').toUpperCase();
+          var dispVal = '0x'+hexVal;
+          if (wsec && (tcType === 'write_no_unlock')) {
+            tcs.push({id:idx++, type:'write_no_unlock', did_hi:hi, did_lo:lo,
+              total_len:tlen, mf:mf, write_val:dispVal,
+              name:'2E '+hi+' '+lo+' '+dispVal+' WITHOUT unlock → NEG 7F 2E 33'});
+            // Security seed/key (27 01/02) is only valid in Extended session.
+            // If current write session (wss) isn't Extended, switch there first,
+            // unlock, then switch back to the target write session.
+            if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
+              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+                name:'PRECOND Switch to Extended for Security Unlock'});
+              tcs.push({id:idx++, type:'security_unlock', level:wsec,
+                name:'SECURITY unlock '+wsec});
+              tcs.push({id:idx++, type:'session_switch', session:wss,
+                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
+            } else {
+              tcs.push({id:idx++, type:'security_unlock', level:wsec,
+                name:'SECURITY unlock '+wsec});
+            }
+          }
+          if (posOrNeg === 'POS') {
+            tcs.push({id:idx++, type:'write_after_unlock', did_hi:hi, did_lo:lo,
+              total_len:tlen, mf:mf, write_val:dispVal, no_sec:!wsec,
+              name:'2E '+hi+' '+lo+' '+dispVal+(wsec?' AFTER unlock':' direct')+' → POS 6E'+(mf?'[MF]':'')});
+          } else {
+            tcs.push({id:idx++, type:'write_out_of_range', did_hi:hi, did_lo:lo,
+              total_len:tlen, mf:mf, write_val:dispVal,
+              name:'2E '+hi+' '+lo+' '+dispVal+' OUT-OF-RANGE → NEG 7F 2E '+nrc+' (NRC 0x'+nrc+')'});
+          }
+        }
+
+        // writeVal = space-separated hex bytes e.g. "00" or "FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
+        function mkWriteTc(tcType, wv, isPos) {
+          var nm = '2E '+hi+' '+lo+' ['+wv+']'+(wsec?' AFTER unlock':' direct')+' → '+(isPos?'POS 6E':'NEG 7F 2E 31')+(mf?'[MF]':'');
+          tcs.push({id:idx++, type:isPos?'write_after_unlock':'write_out_of_range',
+            did_hi:hi, did_lo:lo, total_len:tlen, mf:mf, write_val:wv, no_sec:!wsec, name:nm});
+        }
+
+        if (wsec) {
+          // Write without unlock → NEG 33 (security access denied)
+          tcs.push({id:idx++, type:'write_no_unlock', did_hi:hi, did_lo:lo,
+            total_len:tlen, mf:mf, write_val:writeVal,
+            name:'2E '+hi+' '+lo+' ['+writeVal+'] WITHOUT unlock → NEG 7F 2E 33'});
+          // Security seed/key (27 01/02) is only valid in Extended session.
+          if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
+            tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+              name:'PRECOND Switch to Extended for Security Unlock'});
+            tcs.push({id:idx++, type:'security_unlock', level:wsec,
+              name:'SECURITY unlock '+wsec});
+            tcs.push({id:idx++, type:'session_switch', session:wss,
+              name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
+          } else {
+            tcs.push({id:idx++, type:'security_unlock', level:wsec,
+              name:'SECURITY unlock '+wsec});
+          }
+        }
+
+        if (hasRange) {
+          if (!isMultiByte) {
+            // Single-byte: test min, 2 mid-points, max (not every value)
+            var wRange = maxInt - minInt;
+            var wTestVals = [minInt];
+            if(wRange >= 4) {
+              wTestVals.push(Math.floor(minInt + wRange * 0.33));
+              wTestVals.push(Math.floor(minInt + wRange * 0.66));
+            } else {
+              // Small range: test all values
+              for(var vv=minInt+1; vv<maxInt; vv++) wTestVals.push(vv);
+            }
+            wTestVals.push(maxInt);
+            // Deduplicate
+            wTestVals = wTestVals.filter(function(v,i,a){return a.indexOf(v)===i;});
+            wTestVals.forEach(function(v) {
+              var bv = v.toString(16).toUpperCase().padStart(2,'0');
+              mkWriteTc('write_after_unlock', bv, true);
+            });
+            // Below-min OOR (if min > 0)
+            if (minInt > 0) {
+              mkWriteTc('write_out_of_range', (minInt-1).toString(16).toUpperCase().padStart(2,'0'), false);
+            }
+            // Above-max OOR
+            mkWriteTc('write_out_of_range', (maxInt+1).toString(16).toUpperCase().padStart(2,'0'), false);
+          } else {
+            // ── Multi-byte DID write tests ──────────────────────────────────
+            // Test 1: Write ALL-MIN pattern → POS 6E (valid)
+            mkWriteTc('write_after_unlock', minV, true);
+            // Test 2: Write ALL-MAX pattern → POS 6E (valid)
+            mkWriteTc('write_after_unlock', maxV, true);
+            // Test 3: Write DEFAULT/ZEROS pattern → POS 6E (valid)
+            var zeroV = new Array(effectiveDataLen).fill('00').join(' ');
+            if(zeroV !== minV) mkWriteTc('write_after_unlock', zeroV, true);
+            // Test 4: Out-of-range — if max is not all-FF, write max+1 → NEG 7F 2E 31
+            var allFF = maxBytes.every(function(b){return b===0xFF;});
+            if(!allFF) {
+              var oorBytes = maxBytes.slice();
+              oorBytes[oorBytes.length-1] = Math.min(0xFF, oorBytes[oorBytes.length-1]+1);
+              var oorV = oorBytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ');
+              mkWriteTc('write_out_of_range', oorV, false);
+            }
+            // Test 5: Wrong length (1 byte instead of effectiveDataLen) → NEG 7F 2E 13 (0x13 incorrectMessageLength)
+            tcs.push({id:idx++, type:'write_wrong_length', did_hi:hi, did_lo:lo,
+              total_len:4, mf:false, write_val:'00', nrc:'13',
+              name:'2E '+hi+' '+lo+' [00] wrong length (1 byte, expected '+effectiveDataLen+') → NEG 7F 2E 13 (NRC 0x13)'});
+            // Test 6: Wrong length (too long — effectiveDataLen+1 bytes) → NEG 7F 2E 13
+            tcs.push({id:idx++, type:'write_wrong_length_long', did_hi:hi, did_lo:lo,
+              total_len:(3+effectiveDataLen+1), mf:(effectiveDataLen+1>4), write_val:minV+' 00', nrc:'13',
+              name:'2E '+hi+' '+lo+' ['+minV+' 00] wrong length ('+(effectiveDataLen+1)+' bytes, expected '+effectiveDataLen+') → NEG 7F 2E 13 (NRC 0x13)'});
+          }
+        } else {
+          // No range defined — write default/zeros → POS 6E
+          mkWriteTc('write_after_unlock', writeVal, true);
+          // For multi-byte DIDs: always add wrong-length tests even without range
+          if (isMultiByte) {
+            // Too short: 1 byte → NEG 7F 2E 13 (incorrectMessageLength)
+            tcs.push({id:idx++, type:'write_wrong_length', did_hi:hi, did_lo:lo,
+              total_len:4, mf:false, write_val:'00', nrc:'13',
+              name:'2E '+hi+' '+lo+' [00] wrong length (1 byte, expected '+effectiveDataLen+') → NEG 7F 2E 13 (NRC 0x13)'});
+            // Too long: effectiveDataLen+1 bytes → NEG 7F 2E 13
+            var tlLong2 = 3 + effectiveDataLen + 1;
+            var longVal = writeBytes.map(function(b){return b.toString(16).toUpperCase().padStart(2,'0');}).join(' ') + ' 00';
+            tcs.push({id:idx++, type:'write_wrong_length_long', did_hi:hi, did_lo:lo,
+              total_len:tlLong2, mf:(effectiveDataLen+1>4), write_val:longVal, nrc:'13',
+              name:'2E '+hi+' '+lo+' ('+effectiveDataLen+'+1 bytes, too long) → NEG 7F 2E 13 (NRC 0x13)'});
+          }
+        }
+
+        // Readback compare: read after write to verify (only if DID is readable)
+        if(rs.length > 0) {
+          tcs.push({id:idx++, type:'read_pos', did_hi:hi, did_lo:lo, total_len:tlen, mf:mf,
+            readback:true, name:'22 '+hi+' '+lo+' readback compare after write'});
+        }
+      });
+    } else if (svc === '22') {
+      // Explicit read-only service: try write and confirm rejection
+      if(didIsEol) {
+        // EOL DID read-only: already in EOL session, send 2E write → NEG 31
+        tcs.push({id:idx++, type:'write_not_supported', did_hi:hi, did_lo:lo,
+          data_length:did.data_length||1, mf:mf,
+          name:'2E '+hi+' '+lo+' write attempt in EOL → NEG 7F 2E 31 (read-only)'});
+        // Readback: confirm value unchanged after rejected write
+        tcs.push({id:idx++, type:'read_pos', did_hi:hi, did_lo:lo, total_len:tlen, mf:mf,
+          session:sess.eol, default_value:did.default_value,
+          name:'22 '+hi+' '+lo+' readback in EOL → POS 62 (confirm value unchanged after write reject)'});
+      } else {
+        // Normal DID: switch to Ext then try write
+        tcs.push({id:idx++, type:'session_switch', session:sess.default,
+          name:'PRECOND Return to Default (write NRC test)'});
+        tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+          name:'PRECOND Set Ext (write NRC test)'});
+        tcs.push({id:idx++, type:'write_not_supported', did_hi:hi, did_lo:lo,
+          data_length:did.data_length||1, mf:mf,
+          name:'2E '+hi+' '+lo+' write attempt → NEG 7F 2E 31 (read-only)'});
+        // Readback: confirm value unchanged after rejected write
+        tcs.push({id:idx++, type:'read_pos', did_hi:hi, did_lo:lo, total_len:tlen, mf:mf,
+          session:sess.extended, default_value:did.default_value,
+          name:'22 '+hi+' '+lo+' readback in Ext → POS 62 (confirm value unchanged after write reject)'});
+      }
+    }
+  });
+  return tcs;
+}
+
+// ─────────────────────────────────────────────
+// CAPL generator (JS)
+// ─────────────────────────────────────────────
+
+// ── generateCapl ─────────────────────────────────────────────
+function generateCapl(cfg, tcs) {
+  var tx = cfg.tx_id, rx = cfg.rx_id, ch = cfg.can_channel, proj = cfg.project_name;
+  var total = tcs.length;
+  var sec1 = cfg.security.level1 || {};
+  var algo1 = sec1.algorithm || 'EXE';
+  var seedSf1 = sec1.seed_request_subfunction || '0x01';
+
+  // printTcName
+  var nameBlock = 'void printTcName(int id)\n{\n  switch(id)\n  {\n';
+  // Helper: parse write_val (space-separated or single hex) into byte array of len n
+  function parseWriteVal(wv, n) {
+    var s = (wv||'00').toString().trim();
+    var parts = s.replace(/0x/gi,'').split(/[\s,]+/).filter(function(p){return p.length>0;});
+    var bytes = parts.map(function(p){return p.toUpperCase().padStart(2,'0');});
+    while(bytes.length < n) bytes.push('00');
+    return bytes.slice(0, n);
+  }
+  // Helper: generate wrBuf fill lines for a byte array
+  function buildWrBufFill(bytes) {
+    var s = '';
+    for(var bi=0; bi<bytes.length; bi++) {
+      s += '      wrBuf['+bi+']=0x'+bytes[bi]+';\n';
+    }
+    return s;
+  }
+
+  tcs.forEach(function(t) { nameBlock += '    case '+t.id+': write("NAME: '+t.name.replace(/"/g,"'")+'"); break;\n'; });
+  nameBlock += '    default: write("NAME: UNKNOWN"); break;\n  }\n}\n';
+
+  // isAutoUnlockTc
+  var autoIds = tcs.filter(function(t){ return t.type==='security_unlock'; }).map(function(t){ return t.id; });
+  var eolAutoIds = tcs.filter(function(t){ return t.type==='security_unlock' && t.level==='level_eol'; }).map(function(t){return t.id;});
+  var autoBlock = 'int isAutoUnlockTc(int id)\n{\n';
+  autoIds.forEach(function(i){ autoBlock += '  if(id=='+i+') return 1;\n'; });
+  autoBlock += '  return 0;\n}\n';
+  // setSecLevelForTc: sets secLevel=2 for EOL unlock TCs, else secLevel=1
+  autoBlock += 'void setSecLevelForTc(int id){\n';
+  eolAutoIds.forEach(function(id){ autoBlock += '  if(id=='+id+'){secLevel=2;return;}\n'; });
+  autoBlock += '  secLevel=1;\n}\n';
+
+  // loadTestcase
+  var loadBlock = 'void loadTestcase(int idx)\n{\n' +
+    '  reqB0=0;reqB1=0;reqB2=0;reqB3=0;reqB4=0;reqB5=0;reqB6=0;reqB7=0;\n' +
+    '  expType=0;expPosSid=0;expEchoMode=0;expEchoByte=0;\n' +
+    '  expDidHi=0;expDidLo=0;expNegSid=0;expNrc=0;expTotalLen=0;\n' +
+    '  defChkEn=0;tcId=idx;pendingSeen=0;\n' +
+    '  switch(idx)\n  {\n';
+
+  tcs.forEach(function(t) {
+    var id = t.id;
+    switch(t.type) {
+      case 'session_switch':
+        loadBlock += '    case '+id+':\n      reqB0=0x02;reqB1=0x10;reqB2='+t.session+';\n' +
+          '      expType=0;expPosSid=0x50;expEchoMode=1;expEchoByte='+t.session+';\n    break;\n';
+        break;
+      case 'read_pos':
+        loadBlock += '    case '+id+':\n      reqB0=0x03;reqB1=0x22;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';\n' +
+          '      expType=0;expPosSid=0x62;expEchoMode=3;\n' +
+          '      expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';expTotalLen='+t.total_len+';\n' +
+          (function(){
+            if(!t.readback||!t.default_value)return '';
+            var dv=String(t.default_value).trim().toUpperCase().replace(/^0X/,'');
+            if(!/^[0-9A-F]{1,2}$/.test(dv))return '';
+            return '      defChkEn=1;defDidHi=0x'+t.did_hi+';defDidLo=0x'+t.did_lo+';defExpected=0x'+dv.padStart(2,'0')+';\n';
+          })() +
+          (t.readback ? '      wrRbActive=1;wrDidHi=0x'+t.did_hi+';wrDidLo=0x'+t.did_lo+';\n' : '') +
+          '    break;\n';
+        break;
+      case 'read_neg':
+        // expNrc comes from TC or default 0x31
+        var rnrc = t.nrc || '0x31';
+        loadBlock += '    case '+id+':\n      reqB0=0x03;reqB1=0x22;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';\n' +
+          '      expType=1;expNegSid=0x22;expNrc='+rnrc+';\n    break;\n';
+        break;
+      case 'read_nrc13': {
+        // NRC 0x13: wrong length read — send only SID (1 byte) or SID+partial DID
+        loadBlock += '    case '+id+':\n      reqB0=0x02;reqB1=0x22;reqB2=0x'+t.did_hi+';\n      expType=1;expNegSid=0x22;expNrc=0x13;\n    break;\n';
+        break; }
+      case 'security_unlock':
+        loadBlock += '    case '+id+':\n      /* Security: '+t.level+' */\n      expType=0;\n    break;\n';
+        break;
+      case 'write_no_unlock': {
+        var wBytes = parseWriteVal(t.write_val, t.total_len - 3);
+        var tlH = t.total_len.toString(16).toUpperCase().padStart(2,'0');
+        if (!t.mf) {
+          var dbNU='';
+          for(var dbi4=0;dbi4<wBytes.length&&dbi4<4;dbi4++) dbNU+=';reqB'+(4+dbi4)+'=0x'+wBytes[dbi4];
+          loadBlock += '    case '+id+':\n      reqB0=0x'+tlH+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+dbNU+';\n      expType=1;expNegSid=0x2E;expNrc=0x33;\n    break;\n';
+        } else {
+          var firstBytes = wBytes.slice(0,3);
+          while(firstBytes.length<3) firstBytes.push('00');
+          loadBlock += '    case '+id+': {\n' +
+            '      for(_k=0;_k<'+wBytes.length+';_k++) wrBuf[_k]=0x'+wBytes[0]+';\n' +
+            buildWrBufFill(wBytes) +
+            '      req.dir=Tx;req.dlc=8;\n' +
+            '      req.byte(0)=0x10;req.byte(1)=0x'+tlH+';\n' +
+            '      req.byte(2)=0x2E;req.byte(3)=0x'+t.did_hi+';req.byte(4)=0x'+t.did_lo+';\n' +
+            '      req.byte(5)=wrBuf[0];req.byte(6)=wrBuf[1];req.byte(7)=wrBuf[2];\n' +
+            '      output(req);\n' +
+            '      isoTpTc='+id+';isoTpStage=1;isoCfIdx=1;isoDataIdx=3;\n' +
+            '      waitingResp=1;pendingSeen=0;\n' +
+            '      expType=1;expNegSid=0x2E;expNrc=0x33;\n' +
+            '      setTimer(respTimer,RESP_TIMEOUT_MS);\n    } break;\n';
+        }
+        break; }
+      case 'write_after_unlock':
+      case 'write_range_min':
+      case 'write_range_max': {
+        var wBytes2 = parseWriteVal(t.write_val, t.total_len - 3);
+        var tlH2 = t.total_len.toString(16).toUpperCase().padStart(2,'0');
+        if (!t.mf) {
+          // Build all data bytes (reqB4..reqB7) for single-frame write
+          var dbLines2='';
+          for(var dbi2=0;dbi2<wBytes2.length&&dbi2<4;dbi2++){
+            dbLines2+=';reqB'+(4+dbi2)+'=0x'+wBytes2[dbi2];
+          }
+          loadBlock += '    case '+id+':\n      reqB0=0x'+tlH2+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+dbLines2+';\n      expType=0;expPosSid=0x6E;expEchoMode=2;expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n    break;\n';
+        } else {
+          var dataLen2 = t.total_len - 3;
+          loadBlock += '    case '+id+': {\n' +
+            '      wrLen='+dataLen2+';\n' +
+            buildWrBufFill(wBytes2) +
+            '      req.dir=Tx;req.dlc=8;\n' +
+            '      req.byte(0)=0x10;req.byte(1)=0x'+tlH2+';\n' +
+            '      req.byte(2)=0x2E;req.byte(3)=0x'+t.did_hi+';req.byte(4)=0x'+t.did_lo+';\n' +
+            '      req.byte(5)=wrBuf[0];req.byte(6)=wrBuf[1];req.byte(7)=wrBuf[2];\n' +
+            '      output(req);\n' +
+            '      isoTpTc='+id+';isoTpStage=1;isoCfIdx=1;isoDataIdx=3;\n' +
+            '      waitingResp=1;pendingSeen=0;\n' +
+            '      expType=0;expPosSid=0x6E;expEchoMode=2;\n' +
+            '      expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n' +
+            '      setTimer(respTimer,RESP_TIMEOUT_MS);\n    } break;\n';
+        }
+        break; }
+      case 'write_out_of_range': {
+        var wBytesOOR = parseWriteVal(t.write_val, t.total_len - 3);
+        var tlOOR = t.total_len.toString(16).toUpperCase().padStart(2,'0');
+        if (!t.mf) {
+          var dbOOR='';
+          for(var dbi3=0;dbi3<wBytesOOR.length&&dbi3<4;dbi3++) dbOOR+=';reqB'+(4+dbi3)+'=0x'+wBytesOOR[dbi3];
+          loadBlock += '    case '+id+':\n      reqB0=0x'+tlOOR+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+dbOOR+';\n      expType=1;expNegSid=0x2E;expNrc=0x31;\n    break;\n';
+        } else {
+          loadBlock += '    case '+id+': {\n' +
+            '      wrLen='+(t.total_len-3)+';\n' +
+            buildWrBufFill(wBytesOOR) +
+            '      req.dir=Tx;req.dlc=8;\n' +
+            '      req.byte(0)=0x10;req.byte(1)=0x'+tlOOR+';\n' +
+            '      req.byte(2)=0x2E;req.byte(3)=0x'+t.did_hi+';req.byte(4)=0x'+t.did_lo+';\n' +
+            '      req.byte(5)=wrBuf[0];req.byte(6)=wrBuf[1];req.byte(7)=wrBuf[2];\n' +
+            '      output(req);\n' +
+            '      isoTpTc='+id+';isoTpStage=1;isoCfIdx=1;isoDataIdx=3;\n' +
+            '      waitingResp=1;pendingSeen=0;\n' +
+            '      expType=1;expNegSid=0x2E;expNrc=0x31;\n' +
+            '      setTimer(respTimer,RESP_TIMEOUT_MS);\n    } break;\n';
+        }
+        break; }
+      case 'write_wrong_length': {
+        // Wrong length (too short) → NEG 7F 2E 13 (incorrectMessageLengthOrInvalidFormat)
+        var tlWL = t.total_len.toString(16).toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x'+tlWL+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x00;\n      expType=1;expNegSid=0x2E;expNrc=0x13;\n    break;\n';
+        break; }
+      case 'write_wrong_length_long': {
+        // Wrong length (too long) → NEG 7F 2E 13
+        var wBytesLong = parseWriteVal(t.write_val, t.total_len-3);
+        var tlLong = t.total_len.toString(16).toUpperCase().padStart(2,'0');
+        if(!t.mf)
+          loadBlock += '    case '+id+':\n      reqB0=0x'+tlLong+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x'+wBytesLong[0]+';\n      expType=1;expNegSid=0x2E;expNrc=0x13;\n    break;\n';
+        else {
+          loadBlock += '    case '+id+': {\n' +
+            '      wrLen='+(t.total_len-3)+';\n' +
+            buildWrBufFill(wBytesLong) +
+            '      req.dir=Tx;req.dlc=8;\n' +
+            '      req.byte(0)=0x10;req.byte(1)=0x'+tlLong+';\n' +
+            '      req.byte(2)=0x2E;req.byte(3)=0x'+t.did_hi+';req.byte(4)=0x'+t.did_lo+';\n' +
+            '      req.byte(5)=wrBuf[0];req.byte(6)=wrBuf[1];req.byte(7)=wrBuf[2];\n' +
+            '      output(req);\n' +
+            '      isoTpTc='+id+';isoTpStage=1;isoCfIdx=1;isoDataIdx=3;\n' +
+            '      waitingResp=1;pendingSeen=0;\n' +
+            '      expType=1;expNegSid=0x2E;expNrc=0x13;\n' +
+            '      setTimer(respTimer,RESP_TIMEOUT_MS);\n    } break;\n';
+        }
+        break; }
+      case 'write_not_supported': {
+        // Send correct data length so ECU validates service, not length
+        var wnsLen = t.data_length || 1;
+        var wnsPduLen = (1 + 2 + wnsLen).toString(16).toUpperCase().padStart(2,'0');
+        // For single frame (≤4 data bytes): fill reqB4..B7 with zeros
+        // For MF: just send first frame with zeros — ECU rejects on service check
+        var wnsBytes = '';
+        for(var wi=0;wi<Math.min(wnsLen,4);wi++) wnsBytes += ';reqB'+(4+wi)+'=0x00';
+        if(wnsLen > 4) {
+          // Multi-frame: use ISO-TP first frame format
+          // FF byte: 0x10 | (pduLen >> 8), then pduLen & 0xFF
+          var fullPdu = 3 + wnsLen; // SID + DID_HI + DID_LO + data
+          loadBlock += '    case '+id+':\n      reqB0=0x1'+Math.floor(fullPdu/256).toString(16).toUpperCase()+';reqB1=0x'+( fullPdu%256).toString(16).toUpperCase().padStart(2,'0')+';reqB2=0x2E;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';reqB5=0x00;reqB6=0x00;reqB7=0x00;\n      expType=1;expNegSid=0x2E;expNrc=0x31;\n    break;\n';
+        } else {
+          loadBlock += '    case '+id+':\n      reqB0=0x'+wnsPduLen+';reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+wnsBytes+';\n      expType=1;expNegSid=0x2E;expNrc=0x31;\n    break;\n';
+        }
+        break; }
+      // ── 2F InputOutputControlByIdentifier ─────────────────────────────
+      case 'ioctrl_returnctl': {
+        // returnControlToECU: 2F DID_HI DID_LO 01 [N zeros for data bytes]
+        // Must include data bytes (all 0x00) to match DID data length
+        var tbR = t.total_bytes || 1;
+        var pduLenR = (1 + 2 + 1 + tbR).toString(16).toUpperCase().padStart(2,'0');
+        // reqB5..B7 = first 3 data bytes (all 0x00)
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduLenR+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x01;reqB5=0x00;reqB6=0x00;reqB7=0x00;\n      expType=1;expNegSid=0x2F;expNrc=0x31;\n    break;\n';
+        break; }
+      case 'ioctrl_adjust': {
+        var ctrlBytes=t.ctrl_bytes||null,totalBytesAdj=t.total_bytes||1;
+        var pduLenH=(1+2+1+totalBytesAdj).toString(16).toUpperCase().padStart(2,'0');
+        if(!ctrlBytes||ctrlBytes.length<=1){
+          var cB=(t.ctrl_val||'00').replace(/[\s]+.*$/,'').toUpperCase().padStart(2,'0');
+          loadBlock += '    case '+id+':\n      reqB0=0x'+pduLenH+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x03;reqB5=0x'+cB+';\n      expType=0;expPosSid=0x6F;expEchoMode=2;expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n    break;\n';
+        } else {
+          var b0a=ctrlBytes[0].toString(16).toUpperCase().padStart(2,'0'),b1a=(ctrlBytes[1]||0).toString(16).toUpperCase().padStart(2,'0');
+          loadBlock += '    case '+id+':\n      reqB0=0x'+pduLenH+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x03;reqB5=0x'+b0a+';reqB6=0x'+b1a+';\n      expType=0;expPosSid=0x6F;expEchoMode=2;expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n    break;\n';
+        }
+        break; }
+      case 'ioctrl_freeze': {
+        // freezeCurrentState: 2F DID_HI DID_LO 04 [N zeros]
+        var tbF = t.total_bytes || 1;
+        var pduLenF = (1 + 2 + 1 + tbF).toString(16).toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduLenF+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x04;reqB5=0x00;reqB6=0x00;reqB7=0x00;\n      expType=0;expPosSid=0x6F;expEchoMode=2;expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n    break;\n';
+        break; }
+      case 'ioctrl_no_unlock': {
+        var pduNu=(1+2+1+(t.total_bytes||1)).toString(16).toUpperCase().padStart(2,'0');
+        var b0nu=(t.ctrl_bytes&&t.ctrl_bytes[0]||0).toString(16).toUpperCase().padStart(2,'0');
+        var b1nu=(t.ctrl_bytes&&t.ctrl_bytes[1]||0).toString(16).toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduNu+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x03;reqB5=0x'+b0nu+';reqB6=0x'+b1nu+';\n      expType=1;expNegSid=0x2F;expNrc=0x33;\n    break;\n';
+        break; }
+      case 'ioctrl_oor': {
+        var ctrlBytesOor=t.ctrl_bytes||null,totalBytesOor=t.total_bytes||1;
+        var pduOor=(1+2+1+totalBytesOor).toString(16).toUpperCase().padStart(2,'0');
+        var b0o=(ctrlBytesOor&&ctrlBytesOor[0]||0).toString(16).toUpperCase().padStart(2,'0');
+        var b1o=(ctrlBytesOor&&ctrlBytesOor[1]||0).toString(16).toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduOor+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x03;reqB5=0x'+b0o+';reqB6=0x'+b1o+';\n      expType=1;expNegSid=0x2F;expNrc=0x31;\n    break;\n';
+        break; }
+      case 'ioctrl_wrong_sess': {
+        // In Default session: ECU returns 0x7F (serviceNotSupportedInActiveSession)
+        // In Prog session: ECU returns 0x31 (requestOutOfRange)
+        var tbWs = t.total_bytes || 1;
+        var pduWs = (1+2+1+tbWs).toString(16).toUpperCase().padStart(2,'0');
+        var zeroWs = '';
+        for(var zwi=0; zwi<tbWs && zwi<4; zwi++) zeroWs += ';reqB'+(5+zwi)+'=0x00';
+        var nrcWs = (t.session && t.session.toLowerCase()==='0x01') ? '0x7F' : '0x31';
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduWs+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x01'+zeroWs+';\n      expType=1;expNegSid=0x2F;expNrc='+nrcWs+';\n    break;\n';
+        break; }
+      case 'ioctrl_nrc13_short': {
+        // NRC 0x13: too short — send only SID+DID (3 bytes), no controlParam
+        loadBlock += '    case '+id+':\n      reqB0=0x03;reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';\n      expType=1;expNegSid=0x2F;expNrc=0x13;\n    break;\n';
+        break; }
+      case 'ioctrl_nrc13_long': {
+        // NRC 0x13: too long — correct frame + 1 extra byte
+        var tbLong = (t.total_bytes||1);
+        var pduLong = (1+2+1+tbLong+1).toString(16).toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduLong+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x03;reqB5=0x00;reqB6=0x00;reqB7=0xFF;\n      expType=1;expNegSid=0x2F;expNrc=0x13;\n    break;\n';
+        break; }
+      case 'ioctrl_nrc31_ctrl': {
+        // NRC 0x31: invalid controlParam 0x05 — must include full data bytes so ECU
+        // validates ctrlParam (not length), otherwise gets NRC 0x13 first
+        var tbNrc31 = t.total_bytes || 1;
+        var pduNrc31 = (1+2+1+tbNrc31).toString(16).toUpperCase().padStart(2,'0');
+        var zNrc31='';
+        for(var zn=0;zn<tbNrc31&&zn<4;zn++) zNrc31+=';reqB'+(5+zn)+'=0x00';
+        loadBlock += '    case '+id+':\n      reqB0=0x'+pduNrc31+';reqB1=0x2F;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x05'+zNrc31+';\n      expType=1;expNegSid=0x2F;expNrc=0x31;\n    break;\n';
+        break; }
+      // ── 31 RoutineControl ────────────────────────────────────────────────
+      case 'routine_start': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x01;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=0;expPosSid=0x71;expEchoMode=1;expEchoByte=0x01;\n    break;\n';
+        break; }
+      case 'routine_stop': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x02;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=0;expPosSid=0x71;expEchoMode=1;expEchoByte=0x02;\n    break;\n';
+        break; }
+      case 'routine_results': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x03;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=0;expPosSid=0x71;expEchoMode=1;expEchoByte=0x03;\n    break;\n';
+        break; }
+      case 'routine_results_before_start': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x03;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=1;expNegSid=0x31;expNrc=0x24;\n    break;\n';
+        break; }
+      case 'routine_no_unlock': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x01;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=1;expNegSid=0x31;expNrc=0x33;\n    break;\n';
+        break; }
+      case 'routine_wrong_session': {
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x31;reqB2=0x01;reqB3=0x'+t.did_hi+';reqB4=0x'+t.did_lo+';\n      expType=1;expNegSid=0x31;expNrc=0x31;\n    break;\n';
+        break; }
+
+      // ── EOL entry special cases ───────────────────────────────────────
+      case 'eol_activate': {
+        // 2E actDid actVal — write the EOL activation DID
+        var eavHex = (t.write_val||'01').toUpperCase().padStart(2,'0');
+        loadBlock += '    case '+id+':\n      reqB0=0x04;reqB1=0x2E;reqB2=0x'+t.did_hi+';reqB3=0x'+t.did_lo+';reqB4=0x'+eavHex+';\n      expType=0;expPosSid=0x6E;expEchoMode=2;expDidHi=0x'+t.did_hi+';expDidLo=0x'+t.did_lo+';\n    break;\n';
+        break; }
+      case 'ecu_reset': {
+        // 11 01 ECU hard reset — expect POS 51 01, then wait 3s for reboot
+        // The on message handler detects reqB1==0x11 && reqB2==0x01 and sets nextTimer to 3000ms
+        loadBlock += '    case '+id+':\n      reqB0=0x02;reqB1=0x11;reqB2=0x01;\n      expType=0;expPosSid=0x51;expEchoMode=1;expEchoByte=0x01;\n    break;\n';
+        break; }
+    }
+  });
+  loadBlock += '    default: break;\n  }\n}\n';
+
+  // Security helpers
+  var secBlock = '';
+  Object.keys(cfg.security).forEach(function(lname) {
+    var sec = cfg.security[lname];
+    if (sec.algorithm === 'XOR') {
+      var formula = (sec.key_formula||'(~seed)+0x56').replace(/XOR/g,'^').replace(/xor/g,'^').replace(/SEED/g,'seed').replace(/Seed/g,'seed');
+      secBlock += 'dword computeKey_'+lname+'(dword seed) { return (dword)('+formula+'); }\n';
+      secBlock += 'void autoSendKey_'+lname+'(dword seed)\n';
+      secBlock += '{\n';
+      secBlock += '  /* xorKey_'+lname+' declared as global dword in variables block */\n';
+      secBlock += '  xorKey_'+lname+' = computeKey_'+lname+'(seed);\n';
+      secBlock += '  write("AUTO SEC '+lname+': seed=%08X key=%08X",seed,xorKey_'+lname+');\n';
+      secBlock += '  req.byte(0)=0x06;\n';
+      secBlock += '  req.byte(1)=0x27;\n';
+      secBlock += '  req.byte(2)='+sec.send_key_subfunction+';\n';
+      secBlock += '  req.byte(3)=(byte)((xorKey_'+lname+'>>24)&0xFF);\n';
+      secBlock += '  req.byte(4)=(byte)((xorKey_'+lname+'>>16)&0xFF);\n';
+      secBlock += '  req.byte(5)=(byte)((xorKey_'+lname+'>>8)&0xFF);\n';
+      secBlock += '  req.byte(6)=(byte)(xorKey_'+lname+'&0xFF);\n';
+      secBlock += '  req.byte(7)=0x00;\n';
+      secBlock += '  output(req);\n';
+      secBlock += '  secAutoStep=3;waitingResp=1;\n';
+      secBlock += '  setTimer(respTimer,RESP_TIMEOUT_MS);\n';
+      secBlock += '}\n';
+    }
+  });
+
+  var mfIds = tcs.filter(function(t){ return (t.type==='write_no_unlock'||t.type==='write_after_unlock'||t.type==='write_out_of_range'||t.type==='write_wrong_length_long')&&t.mf; }).map(function(t){ return t.id; });
+  var mfCheck = mfIds.length ? mfIds.map(function(i){ return 'isoTpTc=='+i; }).join('||') : '0';
+
+  // Key dispatch: secLevel==2 (EOL) always uses formula if eolAlgo is XOR
+  // secLevel==1 (normal) uses EXE or formula based on algo1
+  var hasEolSec = !!(cfg.security && cfg.security.level_eol);
+  var eolAlgo = hasEolSec ? (cfg.security.level_eol.algorithm || 'XOR') : null;
+  var keyDispatch;
+  if(!hasEolSec) {
+    // No EOL security: dispatch based on level1 only
+    keyDispatch = algo1==='EXE'
+      ? '        autoRunKeygenExe(autoSeedHex);'
+      : '        autoSendKey_level1(((dword)r3<<24)|((dword)r4<<16)|((dword)r5<<8)|(dword)r6);';
+  } else if(algo1==='EXE' && eolAlgo==='EXE'){
+    keyDispatch = '        autoRunKeygenExe(autoSeedHex);';
+  } else if(algo1==='EXE' && eolAlgo!=='EXE'){
+    keyDispatch = '        if(secLevel==2)autoSendKey_level_eol(((dword)r3<<24)|((dword)r4<<16)|((dword)r5<<8)|(dword)r6);else autoRunKeygenExe(autoSeedHex);';
+  } else if(algo1!=='EXE' && eolAlgo==='EXE'){
+    keyDispatch = '        if(secLevel==2)autoRunKeygenExe(autoSeedHex);else autoSendKey_level1(((dword)r3<<24)|((dword)r4<<16)|((dword)r5<<8)|(dword)r6);';
+  } else {
+    keyDispatch = '        if(secLevel==2)autoSendKey_level_eol(((dword)r3<<24)|((dword)r4<<16)|((dword)r5<<8)|(dword)r6);else autoSendKey_level1(((dword)r3<<24)|((dword)r4<<16)|((dword)r5<<8)|(dword)r6);';
+  }
+
+  return '/*@!Encoding:1252*/\n' +
+    '/* AUTO-GENERATED CAPL UDS TEST SUITE\n' +
+    '   Project: '+proj+' | Total TCs: '+total+'\n' +
+    '   Tx: '+tx+' Rx: '+rx+' Ch: '+ch+' */\n\n' +
+    'variables\n{\n' +
+    '  message '+ch+'.'+tx+' req;\n' +
+    '  message '+ch+'.'+rx+' Diagresp;\n' +
+    '  byte diagPhysResp[8];\n' +
+    '  msTimer respTimer,nextTimer;\n' +
+    '  byte testRunning=0,waitingResp=0;\n' +
+    '  int tcIndex=0,tcCount=0,tcId=0;\n' +
+    '  byte reqB0,reqB1,reqB2,reqB3,reqB4,reqB5,reqB6,reqB7;\n' +
+    '  byte expType,expPosSid,expEchoMode,expEchoByte,expDidHi,expDidLo,expNegSid,expNrc;\n' +
+    '  int expTotalLen=0,defChkEn=0,passCount=0,failCount=0;\n' +
+    '  byte defDidHi=0,defDidLo=0,defExpected=0,r0,r1,r2,r3,r4,r5,r6,r7;\n' +
+    '  int RESP_TIMEOUT_MS=1500,SESS_TIMEOUT_MS=4000,PENDING_RETRY_MS=1500,pendingSeen=0;\n' +
+    '  byte manualWait=0;\n' +
+    '  int isoTpTc=0,isoTpStage=0,isoCfIdx=0,isoDataIdx=0,wrLen=0;\n' +
+    '  byte wrBuf[128],wrRbActive=0,wrDidHi=0,wrDidLo=0;\n' +
+    '  int secAutoActive=0,secAutoStep=0,secWaitKey=0,secTcId=0,secPollCount=0;\n  int secLevel=1;\n' +
+    /* XOR key globals — one dword per XOR level, declared in variables block */
+    (function(){ var xd=''; Object.keys(cfg.security||{}).forEach(function(ln){ if((cfg.security[ln].algorithm||'EXE')==='XOR') xd+='  dword xorKey_'+ln+';\n'; }); return xd; })() +
+    '  msTimer tKeyPollAuto;\n' +
+    '  char KEYGEN_EXE_AUTO[260];\n' +
+       '  char OUT_BIN_DIR_AUTO[260];\n' +
+    '  char autoSeedHex[16];\n' +
+    '  char autoBinPath[260];\n' +
+    '  byte autoKeyFrame[8];\n' +
+    '  msTimer tTesterPresent;\n  int testerPresentOn=0,TP_PERIOD_MS=1000;\n' +
+    '  mstimer DID_2E;\n  /* Scratch globals (CAPL forbids local declarations inside functions) */\n  dword _h;\n  long _r;\n  dword _ts;\n  char _fullCmd[600];\n  char hexDigits[17];\n  int _k;\n  byte _sn;\n  int _left;\n  byte _checkSid;\n  int _pl;\n  int _sid;\n  int _dhi;\n  int _dlo;\n  byte _dataByte;\n  int _startIdx;\n  int _ok;\n}\n\n' +
+    'void print8(char p[],byte b0,byte b1,byte b2,byte b3,byte b4,byte b5,byte b6,byte b7)\n' +
+    '{ write("%s: %02X %02X %02X %02X %02X %02X %02X %02X",p,b0,b1,b2,b3,b4,b5,b6,b7); }\n\n' +
+    'void startTesterPresent(){if(testerPresentOn)return;testerPresentOn=1;setTimer(tTesterPresent,TP_PERIOD_MS);}\n' +
+    'void stopTesterPresent(){testerPresentOn=0;cancelTimer(tTesterPresent);}\n' +
+    'int getTcCount(){return '+total+';}\n\n' +
+    nameBlock+'\n'+autoBlock+'\n'+secBlock+'\n'+
+    'void seed4ToHex(byte b0,byte b1,byte b2,byte b3,char o[])\n{\n' +
+    '  /* hexDigits is global */\n' +
+    '  o[0]=hexDigits[(b0>>4)&0xF];o[1]=hexDigits[b0&0xF];o[2]=hexDigits[(b1>>4)&0xF];o[3]=hexDigits[b1&0xF];\n' +
+    '  o[4]=hexDigits[(b2>>4)&0xF];o[5]=hexDigits[b2&0xF];o[6]=hexDigits[(b3>>4)&0xF];o[7]=hexDigits[b3&0xF];o[8]=0;\n}\n\n' +
+    'int read8BytesBinary(char p[],byte o[]){\n  _h=openFileRead(p,0);\n  if(_h==0)return 0;\n  _r=fileGetBinaryBlock(o,8,_h);fileClose(_h);return(_r==8)?1:0;\n}\n\n' +
+    'void autoBuildBinPath(char s[]){_ts=timeNow();snprintf(autoBinPath,260,"%skey_%s_%lu.bin",OUT_BIN_DIR_AUTO,s,_ts);}\n' +
+    'void autoRunKeygenExe(char s[]){\n  autoBuildBinPath(s);\n  snprintf(_fullCmd,600,"cmd /C \\\"%s key_from_seed %s %s\\\"",KEYGEN_EXE_AUTO,s,autoBinPath);\n  write("AUTO SEC EXE: %s",_fullCmd);\n  sysExec(_fullCmd,"");\n  secWaitKey=1;secPollCount=0;setTimer(tKeyPollAuto,200);\n}\n\n' +
+    'void autoSecStartLight(int id){\n  secAutoActive=1;secAutoStep=2;secWaitKey=0;secTcId=id;\n  req.dir=Tx;req.dlc=8;\n  req.byte(0)=0x02;req.byte(1)=0x27;req.byte(2)=(byte)((secLevel==2)?0x61:'+seedSf1+');\n' +
+    '  req.byte(3)=0;req.byte(4)=0;req.byte(5)=0;req.byte(6)=0;req.byte(7)=0;\n  output(req);waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);\n}\n\n' +
+    loadBlock +
+    'void sendCurrentTc(){\n' +
+    '  write("TEST %d/%d",tcIndex+1,tcCount);\n  printTcName(tcId);\n' +
+    '  if(('+mfCheck+')&&isoTpTc==tcId&&isoTpStage>0){write("ISO-TP active->skip");return;}\n' +
+    '  if(isAutoUnlockTc(tcId)){setSecLevelForTc(tcId);autoSecStartLight(tcId);return;}\n' +
+    '  req.dir=Tx;req.dlc=8;\n' +
+    '  req.byte(0)=reqB0;req.byte(1)=reqB1;req.byte(2)=reqB2;req.byte(3)=reqB3;\n' +
+    '  req.byte(4)=reqB4;req.byte(5)=reqB5;req.byte(6)=reqB6;req.byte(7)=reqB7;\n' +
+    '  print8("REQ",req.byte(0),req.byte(1),req.byte(2),req.byte(3),req.byte(4),req.byte(5),req.byte(6),req.byte(7));\n' +
+    '  if(expType==0){\n    if(expEchoMode==3)write("EXP:POS(%02X %02X %02X)Len=%d",expPosSid,expDidHi,expDidLo,expTotalLen);\n' +
+    '    else if(expEchoMode==2)write("EXP:POS(%02X %02X %02X)",expPosSid,expDidHi,expDidLo);\n' +
+    '    else if(expEchoMode==1)write("EXP:POS(%02X %02X)",expPosSid,expEchoByte);\n' +
+    '    else write("EXP:POS(%02X)",expPosSid);\n  }\n' +
+    '  else if(expType==1)write("EXP:NEG(7F %02X %02X)",expNegSid,expNrc);\n' +
+    '  else write("EXP:NO RESPONSE");\n' +
+    '  waitingResp=1;output(req);setTimer(respTimer,(reqB1==0x10)?SESS_TIMEOUT_MS:RESP_TIMEOUT_MS);\n}\n\n' +
+    'on start{\n  /* CAPL char[] must be initialised at runtime */\n  snprintf(hexDigits,17,"0123456789abcdef");\n  snprintf(KEYGEN_EXE_AUTO,260,".\\\\AES_CAPL.exe");\n  snprintf(OUT_BIN_DIR_AUTO,260,".\\\\");\n  tcCount=getTcCount();\n  write("CAPL UDS Suite: '+proj+' TCs=%d",tcCount);\n  write("Press r to run");\n}\n\n' +
+    'on key \'r\'{\n  if(testRunning){write("Already running");return;}\n  tcCount=getTcCount();tcIndex=0;\n  passCount=0;failCount=0;pendingSeen=0;manualWait=0;testRunning=1;\n  startTesterPresent();\n  write("=== RUN START: '+proj+' ===");\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
+    'on message '+ch+'.'+rx+'{\n' +
+    '  r0=this.byte(0);r1=this.byte(1);r2=this.byte(2);r3=this.byte(3);\n  r4=this.byte(4);r5=this.byte(5);r6=this.byte(6);r7=this.byte(7);\n' +
+    '  if(secAutoActive){\n    cancelTimer(respTimer);\n    if(secAutoStep==2){\n      if(r1==0x67){\n        seed4ToHex(r3,r4,r5,r6,autoSeedHex);\n        write("AUTO SEC SEED=%s",autoSeedHex);\n'+keyDispatch+'\n        return;\n      }\n      write("AUTO SEC FAIL: Exp 67xx got %02X",r1);\n      failCount++;secAutoActive=0;setTimer(nextTimer,150);return;\n    }\n    if(secAutoStep==3){\n      if(r1==0x67&&r2==((secLevel==2)?0x62:0x02)){write("AUTO SEC PASS");passCount++;}\n      else{write("AUTO SEC FAIL: Exp 67 %02X",(secLevel==2)?0x62:0x02);failCount++;}\  secAutoActive=0;secAutoStep=0;secWaitKey=0;setTimer(nextTimer,150);return;\n    }\n  }\n' +
+    '  if(!testRunning||!waitingResp)return;\n  cancelTimer(respTimer);\n' +
+    '  if((r0&0xF0)==0x30){setTimer(DID_2E,10);waitingResp=1;return;}\n' +
+    '  if(isoTpStage>0){waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n' +
+    '  if(r1==0x7F&&r3==0x78){pendingSeen=1;write("PENDING 7F %02X 78",r2);waitingResp=1;setTimer(respTimer,PENDING_RETRY_MS);return;}\n' +
+    '  waitingResp=0;\n  print8("RSP",r0,r1,r2,r3,r4,r5,r6,r7);\n' +
+    '  if(expType==2){write("RESULT:FAIL unexpected response");failCount++;setTimer(nextTimer,150);return;}\n' +
+    '  if(expType==1){\n    if(r1==0x7F&&r2==expNegSid&&r3==expNrc){write("RESULT:PASS NEG 7F %02X %02X",r2,r3);passCount++;}\n    else{write("RESULT:FAIL NEG mismatch Got 7F %02X %02X Exp 7F %02X %02X",r2,r3,expNegSid,expNrc);failCount++;}\n    setTimer(nextTimer,150);return;\n  }\n' +
+    '  if(expEchoMode!=3){\n    if((r0&0xF0)==0x10)_checkSid=r2;else _checkSid=r1;\n    if(_checkSid!=expPosSid){write("RESULT:FAIL SID %02X Exp %02X",_checkSid,expPosSid);failCount++;setTimer(nextTimer,150);return;}\n    if(expEchoMode==1){if(r2==expEchoByte){write("RESULT:PASS");passCount++;}else{write("RESULT:FAIL echo %02X Exp %02X",r2,expEchoByte);failCount++;}}\n    else if(expEchoMode==2){if(r2==expDidHi&&r3==expDidLo){write("RESULT:PASS DID");passCount++;}else{write("RESULT:FAIL DID");failCount++;}}\n    else{write("RESULT:PASS");passCount++;}\n  }else{\n    if((r0&0xF0)==0x00){_pl=(r0&0x0F);_sid=r1;_dhi=r2;_dlo=r3;}\n    else{_pl=((r0&0x0F)<<8)|r1;_sid=r2;_dhi=r3;_dlo=r4;}\n    if(_sid!=expPosSid){write("RESULT:FAIL SID");failCount++;setTimer(nextTimer,150);return;}\n    if(_dhi!=expDidHi||_dlo!=expDidLo){write("RESULT:FAIL DID");failCount++;setTimer(nextTimer,150);return;}\n    if(_pl!=expTotalLen){write("RESULT:FAIL LEN %d Exp %d",_pl,expTotalLen);failCount++;setTimer(nextTimer,150);return;}\n    if(defChkEn&&_sid==0x62&&_dhi==defDidHi&&_dlo==defDidLo){\n      /* _dataByte is global */\n      if((r0&0xF0)==0x00)_dataByte=r4;else _dataByte=r5;\n      if(_dataByte==defExpected)write("DEFCHK:PASS %02X",_dataByte);\n      else{write("DEFCHK:FAIL got %02X exp %02X",_dataByte,defExpected);failCount++;setTimer(nextTimer,150);return;}\n      defChkEn=0;\n    }\n    write("RESULT:PASS DID+LEN OK");passCount++;\n  }\n' +
+    '  if(isoTpTc==tcId){isoTpStage=0;isoTpTc=0;isoCfIdx=0;}\n  setTimer(nextTimer,150);\n}\n\n' +
+    'on timer respTimer{\n  if(secAutoActive){write("AUTO SEC TIMEOUT");failCount++;secAutoActive=0;waitingResp=0;setTimer(nextTimer,150);return;}\n  if(!testRunning||!waitingResp)return;\n  waitingResp=0;\n  if(expType==2){write("RESULT:PASS no response");passCount++;}\n  else{write("RESULT:FAIL timeout");failCount++;}\n  setTimer(nextTimer,150);\n}\n\n' +
+    'on timer nextTimer{\n  secAutoActive=0;secAutoStep=0;secWaitKey=0;cancelTimer(tKeyPollAuto);\n  if(!testRunning||manualWait)return;\n  tcIndex++;\n  if(tcIndex>=tcCount){\n    write("=== COMPLETE: '+proj+' PASS=%d FAIL=%d",passCount,failCount);\n    testRunning=0;stopTesterPresent();return;\n  }\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
+    'on timer tTesterPresent{\n  if(!testerPresentOn)return;\n  if(waitingResp||secAutoActive){setTimer(tTesterPresent,TP_PERIOD_MS);return;}\n  req.dir=Tx;req.dlc=8;req.byte(0)=0x02;req.byte(1)=0x3E;req.byte(2)=0x80;\n  req.byte(3)=0;req.byte(4)=0;req.byte(5)=0;req.byte(6)=0;req.byte(7)=0;\n  output(req);setTimer(tTesterPresent,TP_PERIOD_MS);\n}\n\n' +
+    'on timer tKeyPollAuto{\n  if(!secAutoActive||!secWaitKey)return;\n  secPollCount++;\n  if(secPollCount==1){write("KEY POLL: waiting for bin at: %s",autoBinPath);}\n  if(secPollCount>150){write("KEY TIMEOUT after 30s — check EXE path and permissions: %s",autoBinPath);failCount++;secWaitKey=0;secAutoActive=0;setTimer(nextTimer,150);return;}\n  _ok=read8BytesBinary(autoBinPath,autoKeyFrame);\n  if(!_ok){setTimer(tKeyPollAuto,200);return;}\n  secWaitKey=0;\n  write("KEY BIN FOUND after %d polls",secPollCount);\n  if(secLevel==2) autoKeyFrame[2]=0x62;\n  req.dir=Tx;req.dlc=8;\n  req.byte(0)=autoKeyFrame[0];req.byte(1)=autoKeyFrame[1];req.byte(2)=autoKeyFrame[2];\n  req.byte(3)=autoKeyFrame[3];req.byte(4)=autoKeyFrame[4];req.byte(5)=autoKeyFrame[5];\n  req.byte(6)=autoKeyFrame[6];req.byte(7)=autoKeyFrame[7];\n  output(req);secAutoStep=3;waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);\n}\n\n' +
+    'on timer DID_2E{\n  if(isoTpStage==0)return;\n  _sn=0x20+isoCfIdx;\n  req.dir=Tx;req.dlc=8;req.byte(0)=_sn;\n  _left=wrLen-isoDataIdx;\n  for(_k=0;_k<7;_k++){if(_k<_left)req.byte(1+_k)=wrBuf[isoDataIdx+_k];else req.byte(1+_k)=0x00;}\n  output(req);\n  isoDataIdx+=7;isoCfIdx++;\n  if(isoDataIdx>=wrLen||isoCfIdx>15){isoTpStage=0;cancelTimer(DID_2E);setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n  setTimer(DID_2E,10);\n}\n';
+}
+
+// ─────────────────────────────────────────────
+// Export page
+// ─────────────────────────────────────────────
+var cachedCfg = null;
+var cachedTcs = null;
+var cachedCapl = null;
+
+
+// ── Export ────────────────────────────────────────────────
+
+// ── buildConfig (adapted) ─────────────────────────────────
+
+
+// ── Export ────────────────────────────────────────────────
+
+function buildExp(){
+  CC=buildConfig();
+  CT=buildTestcases(CC);
+  CK=generateCapl(CC,CT);
+  // Debug
+  CC.dids.forEach(function(d,i){
+    console.log('[NexDiag] DID['+i+']='+d.did+' write_support='+d.write_support+' ws='+JSON.stringify(d.write_sessions)+' min='+d.min_value+' max='+d.max_value);
+  });
+  var tot=CT.length;
+  var rd=CT.filter(function(t){return t.type==='read_pos'||t.type==='read_neg';}).length;
+  var wr=CT.filter(function(t){return t.type==='write_after_unlock'||t.type==='write_not_supported'||t.type==='write_out_of_range';}).length;
+  document.getElementById('statrow').innerHTML=
+    mks('Total TCs',tot,'sv1')+mks('Read tests',rd,'sv2')+mks('Write tests',wr,'sv3');
+  document.getElementById('outJson').textContent=JSON.stringify(CC,null,2);
+  var ln=['// '+CC.project_name+' | '+tot+' TCs'];
+  ln.push('// DIDs: '+CC.dids.map(function(d){return d.did+'[min='+d.min_value+',max='+d.max_value+']';}).join(', '));
+  ln.push('');
+  CT.forEach(function(t){ln.push('case '+t.id+': // '+t.name);});
+  document.getElementById('outPre').textContent=ln.join('\n');
+  document.getElementById('outCapl').textContent=CK;
+}
+function mks(l,v,c){return '<div class="stat"><div class="sl">'+l+'</div><div class="sv '+c+'">'+v+'</div></div>';}
+function stab(n,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  document.querySelectorAll('.tpane').forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');document.getElementById('tp'+n).classList.add('on');
+}
+function cpOut(id){navigator.clipboard.writeText(document.getElementById(id).textContent).then(function(){toast('Copied!','ok');});}
+function dlJson(){if(!CC)buildExp();dl(JSON.stringify(CC,null,2),CC.project_name+'_config.json','application/json');}
+function dlCapl(){if(!CK)buildExp();dl(CK,CC.project_name+'_UDS_Tests.can','text/plain');toast('Downloaded: '+CC.project_name,'ok');}
+function dl(c,f,m){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=f;a.click();}
+function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},2800);}
+
+
+addRow({did:'0x4601',name:'CURRENT_UNIT_SET_READ',len:'1',readSessions:['0x01','0x03'],writeSess:'',sec:'',defVal:'0x00',minVal:'',maxVal:''});
+addRow({did:'0x4609',name:'LANGUAGE_SETTING',len:'1',readSessions:['0x01','0x03'],writeSess:'0x03',sec:'level1',defVal:'',minVal:'',maxVal:''});
+
+</script>
+</body>
+</html>

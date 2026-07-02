@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NexDiag — CAPL UDS Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Special+Elite&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ──────────────────────────────────────────────── */
+:root {
+  --white: #ffffff;
+  --off:   #f7f7f6;
+  --off2:  #f0f0ef;
+  --ink:   #0d0d0c;
+  --ink2:  #1a1a18;
+  --mid:   #6b6b68;
+  --light: #a8a8a4;
+  --rule:  #e2e2df;
+  --rule2: #d4d4d0;
+  --blue:  #1a6bfa;
+  --blue2: #0050e6;
+  --tag-bg:#eef3ff;
+  --tag-c: #1a6bfa;
+  --r:     4px;
+  --r2:    8px;
+  --r3:    999px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── GRID BACKGROUND ─────────────────────────────────────── */
+.grid-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.6;
+}
+/* Background photo — subtle overlay under grid */
+.bg-photo {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url('bg.jpg');
+  background-size: cover;
+  background-position: center 40%;
+  opacity: 0.04;
+}
+
+/* ── NAV ─────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px;
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid var(--rule);
+  backdrop-filter: blur(12px);
+}
+.nav-logo {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900;
+  font-size: 21px;
+  letter-spacing: .08em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.nav-logo span { color: var(--blue); }
+.nav-center {
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-center a {
+  font-size: 13px; font-weight: 500;
+  color: var(--mid);
+  text-decoration: none;
+  padding: 6px 12px; border-radius: var(--r3);
+  transition: color .15s, background .15s;
+}
+.nav-center a:hover { color: var(--ink); background: var(--off); }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.btn-nav-ghost {
+  padding: 7px 16px; border-radius: var(--r3);
+  border: 1px solid var(--rule2);
+  background: transparent;
+  color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: border-color .15s;
+  text-decoration: none; display: inline-block;
+}
+.btn-nav-ghost:hover { border-color: var(--ink); }
+.btn-nav-fill {
+  padding: 7px 18px; border-radius: var(--r3);
+  background: var(--ink); color: var(--white);
+  border: none; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+  text-decoration: none; display: inline-block;
+}
+.btn-nav-fill:hover { background: var(--ink2); }
+
+/* ── HERO ─────────────────────────────────────────────────── */
+#hero {
+  position: relative; z-index: 10;
+  padding: 140px 32px 80px;
+  border-bottom: 1px solid var(--rule);
+}
+.hero-inner {
+  max-width: 1100px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 420px; gap: 64px;
+  align-items: start;
+}
+.hero-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--tag-bg); color: var(--tag-c);
+  border: 1px solid rgba(26,107,250,.18);
+  border-radius: var(--r3);
+  font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase;
+  padding: 4px 12px; margin-bottom: 20px;
+}
+.hero-tag .dot { width:5px; height:5px; border-radius:50%; background:var(--blue); }
+.hero-h1 {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900;
+  font-size: clamp(56px, 9vw, 100px);
+  line-height: .88; letter-spacing: .02em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin-bottom: 20px;
+}
+.hero-h1 em { color: #d97706; font-style: inherit; }
+.hero-sub {
+  font-size: 17px; font-weight: 400; color: var(--mid);
+  max-width: 440px; line-height: 1.7; margin-bottom: 32px;
+}
+.hero-ctas { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn-primary {
+  padding: 11px 24px; border-radius: var(--r3);
+  background: var(--ink); color: var(--white);
+  border: none; font-size: 14px; font-weight: 600; letter-spacing: .3px;
+  cursor: pointer; transition: background .15s, transform .15s;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary:hover { background: var(--blue); transform: translateY(-1px); }
+.btn-secondary {
+  padding: 11px 22px; border-radius: var(--r3);
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--rule2);
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: border-color .15s;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-secondary:hover { border-color: var(--ink); }
+
+/* Hero right panel */
+.hero-panel {
+  background: var(--off);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--white);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-dots { display: flex; gap: 5px; }
+.panel-dots span {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--rule2);
+}
+.panel-title {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 11px;
+  color: var(--light); margin-left: auto; margin-right: auto;
+}
+.panel-body { padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+.step-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: var(--r2);
+  background: var(--white); border: 1px solid var(--rule);
+  font-size: 12px;
+}
+.step-row.active { border-color: var(--blue); background: var(--tag-bg); }
+.step-n {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 10px; font-weight: 500;
+  color: var(--light); min-width: 24px;
+}
+.step-row.active .step-n { color: var(--blue); }
+.step-txt { font-weight: 500; color: var(--ink2); flex: 1; }
+.step-row.active .step-txt { color: var(--blue); }
+.step-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: var(--r3);
+  background: var(--ink); color: var(--white);
+}
+.step-row.active .step-badge { background: var(--blue); }
+
+/* Hero stats */
+.hero-stats {
+  max-width: 1100px; margin: 48px auto 0;
+  display: flex; align-items: center; gap: 0;
+  border: 1px solid var(--rule); border-radius: var(--r2);
+  overflow: hidden; background: var(--white);
+}
+.hstat {
+  flex: 1; padding: 20px 24px;
+  border-right: 1px solid var(--rule);
+}
+.hstat:last-child { border-right: none; }
+.hstat-n {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 700; font-size: 28px; color: var(--ink);
+  line-height: 1;
+}
+.hstat-l {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 10px; font-weight: 500;
+  color: var(--light); text-transform: uppercase; letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* ── SECTION COMMON ──────────────────────────────────────── */
+section { position: relative; z-index: 10; }
+.section-inner { max-width: 1100px; margin: 0 auto; padding: 80px 32px; }
+.section-eyebrow {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: 2px; color: var(--blue); text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.section-h2 {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900; font-size: clamp(38px, 4.5vw, 56px);
+  line-height: .9; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 14px;
+}
+.section-sub {
+  font-size: 15px; color: var(--mid); max-width: 500px;
+  line-height: 1.7; margin-bottom: 48px;
+}
+
+/* ── WORKFLOW ─────────────────────────────────────────────── */
+#workflow { background: var(--off); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.workflow-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--rule);
+  border-radius: var(--r2); overflow: hidden; background: var(--white);
+}
+.wstep {
+  padding: 24px 20px;
+  border-right: 1px solid var(--rule);
+  transition: background .15s;
+  cursor: default;
+}
+.wstep:last-child { border-right: none; }
+.wstep:hover { background: var(--off); }
+.wstep.highlight { background: var(--ink); }
+.wstep.highlight .ws-n,
+.wstep.highlight .ws-title,
+.wstep.highlight .ws-desc { color: var(--white); }
+.wstep.highlight .ws-n { color: rgba(255,255,255,.5); }
+.wstep.highlight .ws-badge { background: var(--blue); color: var(--white); }
+.ws-n {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 10px;
+  color: var(--light); margin-bottom: 12px;
+}
+.ws-icon { font-size: 20px; margin-bottom: 10px; }
+.ws-title {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900; font-size: 16px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 8px; line-height: 1.1;
+}
+.ws-desc { font-size: 11px; color: var(--mid); line-height: 1.6; }
+.ws-badge {
+  display: inline-block; margin-top: 10px;
+  padding: 2px 8px; border-radius: var(--r3);
+  font-size: 9px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+  background: var(--off2); color: var(--mid);
+}
+
+/* ── FEATURES ─────────────────────────────────────────────── */
+.features-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: var(--rule);
+  border: 1px solid var(--rule); border-radius: var(--r2); overflow: hidden;
+}
+.feat {
+  background: var(--white); padding: 32px 28px;
+  transition: background .15s;
+}
+.feat:hover { background: var(--off); }
+.feat-label {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 10px; font-weight: 500;
+  color: var(--blue); text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+.feat-title {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900; font-size: 22px; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 10px; line-height: 1.1;
+}
+.feat-desc { font-size: 13px; color: var(--mid); line-height: 1.7; }
+
+/* ── SERVICES ─────────────────────────────────────────────── */
+#services { background: var(--off); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.services-table {
+  width: 100%; border-collapse: collapse;
+  border: 1px solid var(--rule); border-radius: var(--r2); overflow: hidden;
+  background: var(--white);
+}
+.services-table th {
+  background: var(--off); padding: 12px 20px;
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 1.5px; color: var(--light);
+  border-bottom: 1px solid var(--rule); text-align: left;
+}
+.services-table td {
+  padding: 16px 20px; border-bottom: 1px solid var(--rule);
+  font-size: 13px; vertical-align: top;
+}
+.services-table tr:last-child td { border-bottom: none; }
+.services-table tr:hover td { background: var(--off); }
+.svc-hex {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 13px; font-weight: 500;
+  color: var(--blue); white-space: nowrap;
+}
+.svc-name { font-weight: 600; color: var(--ink); }
+.svc-desc { color: var(--mid); }
+.svc-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag {
+  padding: 2px 8px; border-radius: var(--r3);
+  font-size: 10px; font-weight: 500; letter-spacing: .3px;
+  background: var(--off2); color: var(--mid); border: 1px solid var(--rule);
+}
+
+/* ── CTA ──────────────────────────────────────────────────── */
+#cta { border-top: 1px solid var(--rule); }
+.cta-inner {
+  max-width: 1100px; margin: 0 auto; padding: 96px 32px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+}
+.cta-h2 {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 900;
+  font-size: clamp(42px, 5.5vw, 68px);
+  text-transform: uppercase; line-height: .88; letter-spacing: .02em;
+  color: var(--ink); margin-bottom: 16px;
+}
+.cta-h2 em { color: #d97706; font-style: inherit; }
+.cta-sub { font-size: 15px; color: var(--mid); line-height: 1.7; margin-bottom: 28px; }
+.cta-right {
+  background: var(--off); border: 1px solid var(--rule);
+  border-radius: 12px; padding: 32px;
+}
+.cta-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--rule);
+}
+.cta-step:last-child { border-bottom: none; }
+.cta-step-n {
+  font-family: 'SF Mono', 'Consolas', 'Menlo', monospace; font-size: 11px; font-weight: 500;
+  color: var(--white); background: var(--ink); border-radius: 50%;
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px; font-size: 10px;
+}
+.cta-step-title { font-weight: 600; font-size: 13px; color: var(--ink); }
+.cta-step-desc { font-size: 12px; color: var(--mid); margin-top: 2px; line-height: 1.5; }
+
+/* ── FOOTER ───────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 10;
+  border-top: 1px solid var(--rule);
+  padding: 28px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; background: var(--white);
+}
+.footer-left { display: flex; align-items: center; gap: 20px; }
+.footer-logo {
+  font-family: 'Big Shoulders Display', sans-serif;
+  font-weight: 800; font-size: 17px; color: var(--ink); text-decoration: none;
+}
+.footer-logo span { color: var(--blue); }
+.footer-copy { font-size: 12px; color: var(--light); }
+.footer-links { display: flex; gap: 16px; }
+.footer-links a { font-size: 12px; color: var(--mid); text-decoration: none; transition: color .15s; }
+.footer-links a:hover { color: var(--ink); }
+
+/* ── REVEAL ───────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ── RESPONSIVE ───────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-panel { display: none; }
+  .workflow-grid { grid-template-columns: repeat(4, 1fr); }
+  .features-grid { grid-template-columns: 1fr 1fr; }
+  .cta-inner { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  nav { padding: 0 16px; }
+  .nav-center { display: none; }
+  #hero { padding: 120px 16px 60px; }
+  .section-inner { padding: 60px 16px; }
+  .workflow-grid { grid-template-columns: 1fr 1fr; }
+  .features-grid { grid-template-columns: 1fr; }
+  .hero-stats { flex-direction: column; }
+  .hstat { border-right: none; border-bottom: 1px solid var(--rule); }
+  .hstat:last-child { border-bottom: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-photo"></div>
+<div class="grid-bg"></div>
+
+<nav>
+  <a class="nav-logo" href="index.html">Nex<span>Diag</span></a>
+  <div class="nav-center">
+    <a href="#workflow">Workflow</a>
+    <a href="#features">Features</a>
+    <a href="#services">Services</a>
+    <a href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
+  </div>
+  <div class="nav-right">
+    <a class="btn-nav-ghost" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
+    <a class="btn-nav-fill" href="generator.html">Launch Generator</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="hero-inner">
+    <div>
+      <h1 class="hero-h1">NexDiag<br><em>Generator</em></h1>
+      <p class="hero-sub">Generate compile-ready CAPL UDS test suites from your SRD sheet — covering all sessions, NRCs, EOL entry, and ISO-TP writes.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="generator.html">Launch Generator →</a>
+        <a class="btn-secondary" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
+      </div>
+    </div>
+    <div class="hero-panel">
+      <div class="panel-header">
+        <div class="panel-dots"><span></span><span></span><span></span></div>
+        <div class="panel-title">nexdiag_generator</div>
+      </div>
+      <div class="panel-body">
+        <div class="step-row"><span class="step-n">01</span><span class="step-txt">Project setup</span><span class="step-badge">Done</span></div>
+        <div class="step-row"><span class="step-n">02</span><span class="step-txt">Session config</span><span class="step-badge">Done</span></div>
+        <div class="step-row"><span class="step-n">03</span><span class="step-txt">Security levels</span><span class="step-badge">Done</span></div>
+        <div class="step-row active"><span class="step-n">04</span><span class="step-txt">DID table — 45 DIDs</span><span class="step-badge">Active</span></div>
+        <div class="step-row"><span class="step-n">05</span><span class="step-txt">Column mapper</span><span class="step-badge">Pending</span></div>
+        <div class="step-row"><span class="step-n">06</span><span class="step-txt">Generate .CAN</span><span class="step-badge">Pending</span></div>
+        <div class="step-row"><span class="step-n">07</span><span class="step-txt">Test report</span><span class="step-badge">Pending</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-stats reveal">
+    <div class="hstat"><div class="hstat-n">0x22/2E</div><div class="hstat-l">Read / Write DID</div></div>
+    <div class="hstat"><div class="hstat-n">0x2F</div><div class="hstat-l">IO Control</div></div>
+    <div class="hstat"><div class="hstat-n">0x31</div><div class="hstat-l">Routine Control</div></div>
+    <div class="hstat"><div class="hstat-n">EOL</div><div class="hstat-l">EOL Entry Sequence</div></div>
+    <div class="hstat"><div class="hstat-n">ISO-TP</div><div class="hstat-l">Multi-frame writes</div></div>
+    <div class="hstat"><div class="hstat-n">7 NRCs</div><div class="hstat-l">Negative responses</div></div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section id="workflow">
+  <div class="section-inner">
+    <div class="section-eyebrow">How it works</div>
+    <h2 class="section-h2">Seven steps from SRD<br>to compile-ready .CAN</h2>
+    <p class="section-sub">Configure your project once. Map your SRD columns. Download a CAPL test suite ready for CANoe.</p>
+    <div class="workflow-grid reveal">
+      <div class="wstep">
+        <div class="ws-n">01</div>
+        <div class="ws-icon">⚙</div>
+        <div class="ws-title">Project Setup</div>
+        <div class="ws-desc">Name, CAN channel, TX/RX IDs, vehicle brand. Sets CAPL file header.</div>
+      </div>
+      <div class="wstep">
+        <div class="ws-n">02</div>
+        <div class="ws-icon">🔗</div>
+        <div class="ws-title">Sessions</div>
+        <div class="ws-desc">Default, Extended, Programming, EOL hex values and activation DID.</div>
+      </div>
+      <div class="wstep">
+        <div class="ws-n">03</div>
+        <div class="ws-icon">🔑</div>
+        <div class="ws-title">Security</div>
+        <div class="ws-desc">Level1 + EOL seed/key sub-functions. EXE or inline formula algorithm.</div>
+      </div>
+      <div class="wstep">
+        <div class="ws-n">04</div>
+        <div class="ws-icon">📋</div>
+        <div class="ws-title">DID Table</div>
+        <div class="ws-desc">Manual entry or Excel import. Service type, sessions, range, bitmaps.</div>
+        <span class="ws-badge">Excel import</span>
+      </div>
+      <div class="wstep">
+        <div class="ws-n">05</div>
+        <div class="ws-icon">🗂</div>
+        <div class="ws-title">Column Map</div>
+        <div class="ws-desc">Map SRD columns to DID, Length, Sessions, Range, I/O Control, Bmap.</div>
+      </div>
+      <div class="wstep">
+        <div class="ws-n">06</div>
+        <div class="ws-icon">⚡</div>
+        <div class="ws-title">Generate</div>
+        <div class="ws-desc">One click generates the complete .CAN file. Download and run in CANoe.</div>
+        <span class="ws-badge">Download .CAN</span>
+      </div>
+      <div class="wstep highlight">
+        <div class="ws-n">07</div>
+        <div class="ws-icon">📊</div>
+        <div class="ws-title">Report</div>
+        <div class="ws-desc">Drop CANoe Write Window log. Interactive charts, failure analysis, PDF export.</div>
+        <span class="ws-badge">Report tool →</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-inner">
+    <div class="section-eyebrow">Capabilities</div>
+    <h2 class="section-h2">Built for real ECU<br>validation work</h2>
+    <p class="section-sub">Covers every edge case your Visteon cluster validation programs require — Royal Enfield, TVS, Hero.</p>
+    <div class="features-grid reveal">
+      <div class="feat">
+        <div class="feat-label">EOL</div>
+        <div class="feat-title">EOL Entry Sequence</div>
+        <div class="feat-desc">Full 8-step entry: Ext → EOL session → security unlock → activation write → ECU reset → re-entry. Correct 10 03 → 10 60 after each negative test.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">ISO-TP</div>
+        <div class="feat-title">Multi-Byte Writes</div>
+        <div class="feat-desc">Auto ISO-TP first + consecutive frames for DIDs >4 bytes. All reqB4..reqB7 bytes correctly emitted for single-frame writes.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">NRC</div>
+        <div class="feat-title">Full NRC Coverage</div>
+        <div class="feat-desc">NRC 0x13 wrong length, 0x31 OOR above/below range, 0x33 no security, 0x7F wrong session, 0x7E sequence error — per DID, automatically.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">2F</div>
+        <div class="feat-title">IO Control</div>
+        <div class="feat-desc">Bit-map: ALL_OFF → each individual bit → ALL_ON. Range: min/25%/50%/75%/max. OOR below min and above max. Invalid ctrlParam 0x05.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">SRD</div>
+        <div class="feat-title">Excel Import</div>
+        <div class="feat-desc">Upload SRD Excel. Column mapper auto-detects I/O Control, Range, Description. Strikethrough rows excluded via openpyxl pre-processing.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">Security</div>
+        <div class="feat-title">Mixed Algorithms</div>
+        <div class="feat-desc">Level1 EXE + EOL formula combinations handled per security level. Live formula preview shows computed key before generating.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <div class="section-inner">
+    <div class="section-eyebrow">UDS Services</div>
+    <h2 class="section-h2">All diagnostic<br>services covered</h2>
+    <p class="section-sub">Every service generates the complete TC set — positive, negative, session, and NRC cases.</p>
+    <div class="reveal" style="overflow:hidden;border-radius:var(--r2)">
+      <table class="services-table">
+        <thead>
+          <tr>
+            <th>Service ID</th>
+            <th>Service</th>
+            <th>Description</th>
+            <th>Test cases generated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="svc-hex">0x22 / 0x2E</td>
+            <td class="svc-name">Read / Write DID</td>
+            <td class="svc-desc">Session checks per session, write range (min+33%+66%+max), readback after write</td>
+            <td><div class="svc-tags"><span class="tag">NRC 0x13</span><span class="tag">NRC 0x31</span><span class="tag">NRC 0x33</span><span class="tag">Readback</span></div></td>
+          </tr>
+          <tr>
+            <td class="svc-hex">0x22</td>
+            <td class="svc-name">Read Only DID</td>
+            <td class="svc-desc">Read session checks, write rejection (2E → NEG), readback confirms value unchanged</td>
+            <td><div class="svc-tags"><span class="tag">NRC 0x31</span><span class="tag">Write rejection</span><span class="tag">Verify unchanged</span></div></td>
+          </tr>
+          <tr>
+            <td class="svc-hex">0x2F</td>
+            <td class="svc-name">InputOutput Control</td>
+            <td class="svc-desc">Bit-map per-bit TCs or range-based (5 points), OOR above/below, invalid ctrlParam, returnControl</td>
+            <td><div class="svc-tags"><span class="tag">Bit map</span><span class="tag">OOR</span><span class="tag">NRC 0x13</span><span class="tag">ReturnCtrl</span></div></td>
+          </tr>
+          <tr>
+            <td class="svc-hex">0x31</td>
+            <td class="svc-name">Routine Control</td>
+            <td class="svc-desc">requestResults before start (NRC 0x24), start, results, stop, wrong session, no unlock</td>
+            <td><div class="svc-tags"><span class="tag">NRC 0x24</span><span class="tag">NRC 0x7F</span><span class="tag">NRC 0x33</span></div></td>
+          </tr>
+          <tr>
+            <td class="svc-hex">EOL</td>
+            <td class="svc-name">EOL Entry</td>
+            <td class="svc-desc">8-step entry with security unlock, activation write, ECU reset, re-entry before every negative test</td>
+            <td><div class="svc-tags"><span class="tag">27 61/62</span><span class="tag">11 01 reset</span><span class="tag">Re-entry</span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="cta-inner">
+    <div>
+      <div class="section-eyebrow">Get started</div>
+      <h2 class="cta-h2">From SRD<br>to <em>.CAN file</em><br>in minutes</h2>
+      <p class="cta-sub">Open the generator, import your Excel, configure sessions and security, and download a compile-ready CAPL test suite.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn-primary" href="generator.html">Open Generator →</a>
+        <a class="btn-secondary" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
+      </div>
+    </div>
+    <div class="cta-right reveal">
+      <div class="cta-step">
+        <div class="cta-step-n">1</div>
+        <div>
+          <div class="cta-step-title">Import your SRD Excel</div>
+          <div class="cta-step-desc">Drop your Excel file, map the columns once. Strikethrough rows excluded automatically.</div>
+        </div>
+      </div>
+      <div class="cta-step">
+        <div class="cta-step-n">2</div>
+        <div>
+          <div class="cta-step-title">Configure sessions &amp; security</div>
+          <div class="cta-step-desc">Set session hex values, EOL entry DID, and security algorithm (EXE or formula).</div>
+        </div>
+      </div>
+      <div class="cta-step">
+        <div class="cta-step-n">3</div>
+        <div>
+          <div class="cta-step-title">Download &amp; compile</div>
+          <div class="cta-step-desc">Get a .CAN file ready to compile in CANoe. Run all TCs in one click.</div>
+        </div>
+      </div>
+      <div class="cta-step">
+        <div class="cta-step-n">4</div>
+        <div>
+          <div class="cta-step-title">Analyse results in Report Tool</div>
+          <div class="cta-step-desc">Drop the Write Window log. Charts, failures, PDF and Excel export.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">
+    <a class="footer-logo" href="index.html">Nex<span>Diag</span></a>
+    <span class="footer-copy">© 2026 Visteon · All rights reserved</span>
+  </div>
+  <div class="footer-links">
+    <a href="generator.html">Generator</a>
+    <a href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
+  </div>
+</footer>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
