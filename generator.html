@@ -492,6 +492,7 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
           </tr></thead><tbody id="dbody"></tbody></table>
         </div>
         <button class="btn btn-sm" style="margin-top:12px" onclick="addRow()">+ Add row</button>
+        <button class="btn btn-sm" style="margin-top:12px;margin-left:8px" onclick="clearAllDids()">🗑 Clear all DIDs</button>
       </div>
       <div class="nr"><button class="btn" onclick="go(3)">← Back</button><button class="btn btn-p" onclick="go(5)">Generate →</button></div>
     </div>
@@ -1358,7 +1359,21 @@ function loadSh(n){
   SD=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
   if(!SD.length)return;
   var hr=0;while(hr<SD.length&&SD[hr].every(function(c){return c==='';})){ hr++; }
-  SH=SD[hr].map(function(h,i){return h||('Col '+(i+1));});
+  // For blank/unlabeled headers, show a preview of the first non-empty
+  // data cell in that column instead of a bare "Col N" — otherwise
+  // unlabeled columns (common in real-world SRDs) are indistinguishable
+  // in the dropdown and easy to mis-map onto the wrong field.
+  SH=SD[hr].map(function(h,i){
+    if(h)return h;
+    for(var r=hr+1;r<Math.min(hr+8,SD.length);r++){
+      var cell=SD[r][i];
+      if(cell!==''&&cell!==null&&cell!==undefined){
+        var preview=String(cell).replace(/[\r\n]+/g,' ').trim().slice(0,24);
+        return 'Col '+(i+1)+' ('+preview+(preview.length===24?'…':'')+')';
+      }
+    }
+    return 'Col '+(i+1)+' (empty)';
+  });
   buildMapper();buildPv(hr);
   document.getElementById('colMap').style.display='block';
 }
@@ -1368,7 +1383,15 @@ function buildMapper(){
   ids.forEach(function(sid){
     var s=document.getElementById(sid);s.innerHTML='<option value="">-- none --</option>';
     SH.forEach(function(h,i){var o=document.createElement('option');o.value=i;o.textContent=h;s.appendChild(o);});
-    (kw[sid]||[]).forEach(function(k){SH.forEach(function(h,i){if(h.toLowerCase().includes(k))s.value=i;});});
+    // First matching column wins (don't let a later, less-specific match
+    // like "Write Support" silently override an earlier correct match
+    // like "Write($2E)" just because both contain the keyword "write").
+    (kw[sid]||[]).forEach(function(k){
+      if(s.value!=='')return;
+      for(var i=0;i<SH.length;i++){
+        if(SH[i].toLowerCase().includes(k)){s.value=i;break;}
+      }
+    });
   });
 }
 function buildPv(hr){
@@ -1383,6 +1406,15 @@ function buildPv(hr){
 }
 function importXL(){
   if(!SD)return;
+  // The DID table never auto-clears itself — without this, importing
+  // (even the same file twice) just appends new rows on top of whatever
+  // is already there, silently mixing old and new DIDs together.
+  if(DR.length>0){
+    var ok=confirm('This will REPLACE the '+DR.length+' DID row(s) already in the table with the new import. Click Cancel to keep both (rows will be appended instead).');
+    if(ok){
+      DR.slice().forEach(function(id){delRow(id);});
+    }
+  }
   var ci=parseInt(gv('mDid')),cn=parseInt(gv('mName')),cl=parseInt(gv('mLen'));
   var cr=parseInt(gv('mRead')),cw=parseInt(gv('mWrite')),cs=parseInt(gv('mSec')),cd=parseInt(gv('mDef'));
   var cRange=parseInt(gv('mRange')),cIO=parseInt(gv('mIOCtrl')),cDesc=parseInt(gv('mDesc'));
@@ -1424,7 +1456,17 @@ function importXL(){
     var cellAddr=colLetter+actualRow;
     var rawCell=rawWS[cellAddr];
     if(rawCell&&rawCell.s&&rawCell.s.strike){skipped++;return;} // skip strikethrough rows
-    if(!did.startsWith('0x')&&!did.startsWith('0X')){var n=parseInt(did);if(!isNaN(n))did='0x'+n.toString(16).toUpperCase().padStart(4,'0');}
+    if(!did.startsWith('0x')&&!did.startsWith('0X')){
+      // DID values are hex identifiers. If the source Excel stored one
+      // as a bare number/text without the "0x" prefix (e.g. "4640"
+      // meaning DID 0x4640, or "463A"), the digits ARE the hex digits —
+      // do NOT reinterpret them as decimal and convert (that corrupts
+      // the value: decimal 4640 is 0x1220, not 0x4640).
+      var cleanDid=did.replace(/\s+/g,'');
+      if(/^[0-9a-fA-F]+$/.test(cleanDid)){
+        did='0x'+cleanDid.toUpperCase().padStart(4,'0');
+      }
+    }
     var nm=isNaN(cn)?'':String(row[cn]||'').trim().toUpperCase().replace(/\s+/g,'_');
     var ln=isNaN(cl)?'1':String(row[cl]||'1').trim();
     var rs=isNaN(cr)?'0x01,0x03':String(row[cr]||'').trim();
@@ -1467,6 +1509,17 @@ function importXL(){
         ra=[];
       }
     }
+    // Fallback: some SRDs don't have a dedicated IO Control column at all —
+    // instead they note it as free text somewhere in the row (e.g. a
+    // "Comments" cell saying "Used for Io control"). If no structured
+    // IOControl column caught this row, scan every cell's raw text as a
+    // last resort so these DIDs still get classified as 2F correctly.
+    if(svc==='22_2E'){
+      var rowText=row.map(function(v){return String(v||'');}).join(' ').toLowerCase();
+      if(/\bi\s*\/?\s*o\s*control\b|\bioctrl\b|\bio\s*control\b/i.test(rowText)){
+        svc='2F';
+      }
+    }
     addRow({did:did,name:nm,len:isNaN(parseInt(ln))?'1':parseInt(ln).toString(),
       readSessions:ra,writeSess:ws,sec:sec,defVal:dv,svc:svc,bmap:bmap,
       minVal:parsedMin,maxVal:parsedMax});imp++;
@@ -1481,6 +1534,11 @@ function getSess(){
 }
 
 function delRow(id){DR=DR.filter(function(d){return d!==id;});var r=document.getElementById('rw'+id);if(r)r.remove();updCnt();}
+function clearAllDids(){
+  if(DR.length===0)return;
+  if(!confirm('Delete all '+DR.length+' DID row(s) from the table? This cannot be undone.'))return;
+  DR.slice().forEach(function(id){delRow(id);});
+}
 function validateFormula(inp){
   var v = inp.value.trim();
   if(/\(-seed\)/.test(v) || /^-seed/.test(v)){
@@ -1671,10 +1729,16 @@ function buildConfig(){
     var wsV=rf('ws'), secV=rf('sec'), lenV=parseInt(rf('len'))||1;
       if(wsV&&wsV.toUpperCase()==='NA') wsV='';
     var defV=rf('def'), minV=rf('min'), maxV=rf('max');
+    // Only keep tokens that actually look like a session hex value
+    // (e.g. "0x02", "02", "60"). This guards against a mismapped
+    // column containing unrelated free text like "YES ( Level-01)"
+    // silently polluting write_sessions with garbage tokens — and keeps
+    // write_support consistent with what sessions were actually found.
+    var parsedWriteSessions=wsV?wsV.split(/[,\s]+/).map(function(x){return x.trim();}).filter(function(x){return x.length>0;}).filter(function(t){return /^0x[0-9a-f]{1,2}$/i.test(t)||/^[0-9a-f]{1,2}$/i.test(t);}):[];
     cfg.dids.push({did:didV, name:rf('name'), data_length:lenV,
       read_sessions:rs,
-      write_sessions:wsV?wsV.split(/[,\s]+/).map(function(x){return x.trim();}).filter(function(x){return x.length>0;}):[],
-      write_support:wsV!==''&&wsV.toUpperCase()!=='NA',
+      write_sessions:parsedWriteSessions,
+      write_support:parsedWriteSessions.length>0,
       write_security_level:secV||null,
       default_value:defV||null,
       min_value:minV!==''?minV:null,
@@ -2660,7 +2724,7 @@ function generateCapl(cfg, tcs) {
     '  byte expType,expPosSid,expEchoMode,expEchoByte,expDidHi,expDidLo,expNegSid,expNrc;\n' +
     '  int expTotalLen=0,defChkEn=0,passCount=0,failCount=0;\n' +
     '  byte defDidHi=0,defDidLo=0,defExpected=0,r0,r1,r2,r3,r4,r5,r6,r7;\n' +
-    '  int RESP_TIMEOUT_MS=1500,SESS_TIMEOUT_MS=6000,PENDING_RETRY_MS=1500,pendingSeen=0;\n' +
+    '  int RESP_TIMEOUT_MS=1500,SESS_TIMEOUT_MS=9000,PENDING_RETRY_MS=1500,pendingSeen=0;\n' +
     '  byte manualWait=0;\n' +
     '  int isoTpTc=0,isoTpStage=0,isoCfIdx=0,isoDataIdx=0,wrLen=0;\n' +
     '  byte wrBuf[128],wrRbActive=0,wrDidHi=0,wrDidLo=0;\n' +
@@ -2705,7 +2769,7 @@ function generateCapl(cfg, tcs) {
     '    else write("EXP:POS(%02X)",expPosSid);\n  }\n' +
     '  else if(expType==1)write("EXP:NEG(7F %02X %02X)",expNegSid,expNrc);\n' +
     '  else write("EXP:NO RESPONSE");\n' +
-    '  waitingResp=1;output(req);setTimer(respTimer,(reqB1==0x10)?SESS_TIMEOUT_MS:RESP_TIMEOUT_MS);\n}\n\n' +
+    '  waitingResp=1;output(req);if(testerPresentOn)setTimer(tTesterPresent,TP_PERIOD_MS);setTimer(respTimer,(reqB1==0x10)?SESS_TIMEOUT_MS:RESP_TIMEOUT_MS);\n}\n\n' +
     'on start{\n  /* CAPL char[] must be initialised at runtime */\n  snprintf(hexDigits,17,"0123456789abcdef");\n  snprintf(KEYGEN_EXE_AUTO,260,".\\\\AES_CAPL.exe");\n  snprintf(OUT_BIN_DIR_AUTO,260,".\\\\");\n  tcCount=getTcCount();\n  write("CAPL UDS Suite: '+proj+' TCs=%d",tcCount);\n  write("Press r to run");\n}\n\n' +
     'on key \'r\'{\n  if(testRunning){write("Already running");return;}\n  tcCount=getTcCount();tcIndex=0;\n  passCount=0;failCount=0;pendingSeen=0;manualWait=0;testRunning=1;\n  startTesterPresent();\n  write("=== RUN START: '+proj+' ===");\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
     'on message '+ch+'.'+rx+'{\n' +
@@ -2718,12 +2782,12 @@ function generateCapl(cfg, tcs) {
     '    else{waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n' +
     '  }\n' +
     '  if(r1==0x7F&&r3==0x78){pendingSeen=1;write("PENDING 7F %02X 78",r2);waitingResp=1;setTimer(respTimer,PENDING_RETRY_MS);return;}\n' +
-    '  waitingResp=0;\n  print8("RSP",r0,r1,r2,r3,r4,r5,r6,r7);\n' +
+    '  waitingResp=0;\n  if(testerPresentOn)setTimer(tTesterPresent,TP_PERIOD_MS);\n  print8("RSP",r0,r1,r2,r3,r4,r5,r6,r7);\n' +
     '  if(expType==2){write("RESULT:FAIL unexpected response");failCount++;setTimer(nextTimer,300);return;}\n' +
     '  if(expType==1){\n    if(r1==0x7F&&r2==expNegSid&&r3==expNrc){write("RESULT:PASS NEG 7F %02X %02X",r2,r3);passCount++;}\n    else{write("RESULT:FAIL NEG mismatch Got 7F %02X %02X Exp 7F %02X %02X",r2,r3,expNegSid,expNrc);failCount++;}\n    setTimer(nextTimer,300);return;\n  }\n' +
     '  if(expEchoMode!=3){\n    if((r0&0xF0)==0x10)_checkSid=r2;else _checkSid=r1;\n    if(_checkSid!=expPosSid){write("RESULT:FAIL SID %02X Exp %02X",_checkSid,expPosSid);failCount++;setTimer(nextTimer,300);return;}\n    if(expEchoMode==1){if(r2==expEchoByte){write("RESULT:PASS");passCount++;}else{write("RESULT:FAIL echo %02X Exp %02X",r2,expEchoByte);failCount++;}}\n    else if(expEchoMode==2){if(r2==expDidHi&&r3==expDidLo){write("RESULT:PASS DID");passCount++;}else{write("RESULT:FAIL DID");failCount++;}}\n    else{write("RESULT:PASS");passCount++;}\n  }else{\n    if((r0&0xF0)==0x00){_pl=(r0&0x0F);_sid=r1;_dhi=r2;_dlo=r3;}\n    else{_pl=((r0&0x0F)<<8)|r1;_sid=r2;_dhi=r3;_dlo=r4;}\n    if(_sid!=expPosSid){write("RESULT:FAIL SID");failCount++;setTimer(nextTimer,300);return;}\n    if(_dhi!=expDidHi||_dlo!=expDidLo){write("RESULT:FAIL DID");failCount++;setTimer(nextTimer,300);return;}\n    if(_pl!=expTotalLen){write("RESULT:FAIL LEN %d Exp %d",_pl,expTotalLen);failCount++;setTimer(nextTimer,300);return;}\n    if(defChkEn&&_sid==0x62&&_dhi==defDidHi&&_dlo==defDidLo){\n      /* _dataByte is global */\n      if((r0&0xF0)==0x00)_dataByte=r4;else _dataByte=r5;\n      if(_dataByte==defExpected)write("DEFCHK:PASS %02X",_dataByte);\n      else{write("DEFCHK:FAIL got %02X exp %02X",_dataByte,defExpected);failCount++;setTimer(nextTimer,300);return;}\n      defChkEn=0;\n    }\n    write("RESULT:PASS DID+LEN OK");passCount++;\n  }\n' +
     '  if(isoTpTc==tcId){isoTpStage=0;isoTpTc=0;isoCfIdx=0;}\n  setTimer(nextTimer,300);\n}\n\n' +
-    'on timer respTimer{\n  if(secAutoActive){write("AUTO SEC TIMEOUT");failCount++;secAutoActive=0;waitingResp=0;setTimer(nextTimer,300);return;}\n  if(!testRunning||!waitingResp)return;\n  waitingResp=0;\n  if(expType==2){write("RESULT:PASS no response");passCount++;}\n  else{write("RESULT:FAIL timeout");failCount++;}\n  setTimer(nextTimer,300);\n}\n\n' +
+    'on timer respTimer{\n  if(secAutoActive){write("AUTO SEC TIMEOUT");failCount++;secAutoActive=0;waitingResp=0;setTimer(nextTimer,300);return;}\n  if(!testRunning||!waitingResp)return;\n  waitingResp=0;\n  if(testerPresentOn)setTimer(tTesterPresent,TP_PERIOD_MS);\n  if(expType==2){write("RESULT:PASS no response");passCount++;}\n  else{write("RESULT:FAIL timeout");failCount++;}\n  setTimer(nextTimer,300);\n}\n\n' +
     'on timer nextTimer{\n  secAutoActive=0;secAutoStep=0;secWaitKey=0;cancelTimer(tKeyPollAuto);\n  if(!testRunning||manualWait)return;\n  tcIndex++;\n  if(tcIndex>=tcCount){\n    write("=== COMPLETE: '+proj+' PASS=%d FAIL=%d",passCount,failCount);\n    testRunning=0;stopTesterPresent();return;\n  }\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
     'on timer tTesterPresent{\n  if(!testerPresentOn)return;\n  if(waitingResp||secAutoActive){setTimer(tTesterPresent,TP_PERIOD_MS);return;}\n  req.dir=Tx;req.dlc=8;req.byte(0)=0x02;req.byte(1)=0x3E;req.byte(2)=0x80;\n  req.byte(3)=0;req.byte(4)=0;req.byte(5)=0;req.byte(6)=0;req.byte(7)=0;\n  output(req);setTimer(tTesterPresent,TP_PERIOD_MS);\n}\n\n' +
     'on timer tKeyPollAuto{\n  if(!secAutoActive||!secWaitKey)return;\n  secPollCount++;\n  if(secPollCount==1){write("KEY POLL: waiting for bin at: %s",autoBinPath);}\n  if(secPollCount>150){write("KEY TIMEOUT after 30s — check EXE path and permissions: %s",autoBinPath);failCount++;secWaitKey=0;secAutoActive=0;setTimer(nextTimer,300);return;}\n  _ok=read8BytesBinary(autoBinPath,autoKeyFrame);\n  if(!_ok){setTimer(tKeyPollAuto,200);return;}\n  secWaitKey=0;\n  write("KEY BIN FOUND after %d polls",secPollCount);\n  if(secLevel==2) autoKeyFrame[2]=0x62;\n  req.dir=Tx;req.dlc=8;\n  req.byte(0)=autoKeyFrame[0];req.byte(1)=autoKeyFrame[1];req.byte(2)=autoKeyFrame[2];\n  req.byte(3)=autoKeyFrame[3];req.byte(4)=autoKeyFrame[4];req.byte(5)=autoKeyFrame[5];\n  req.byte(6)=autoKeyFrame[6];req.byte(7)=autoKeyFrame[7];\n  output(req);secAutoStep=3;waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);\n}\n\n' +
