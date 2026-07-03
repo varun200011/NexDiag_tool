@@ -2449,6 +2449,7 @@ function generateCapl(cfg, tcs) {
           var firstBytes = wBytes.slice(0,3);
           while(firstBytes.length<3) firstBytes.push('00');
           loadBlock += '    case '+id+': {\n' +
+            '      wrLen='+(t.total_len-3)+';\n' +
             '      for(_k=0;_k<'+wBytes.length+';_k++) wrBuf[_k]=0x'+wBytes[0]+';\n' +
             buildWrBufFill(wBytes) +
             '      req.dir=Tx;req.dlc=8;\n' +
