@@ -1942,11 +1942,20 @@ function buildTestcases(cfg) {
           tcs.push({id:idx++,type:'routine_no_unlock',did_hi:hi31,did_lo:lo31,
             name:'31 01 '+hi31+' '+lo31+' WITHOUT unlock → NEG 7F 31 33'});
           if(wsec31==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
-            tcs.push({id:idx++, type:'session_switch', session:sess.extended,
-              name:'PRECOND Switch to Extended for Security Unlock'});
-            tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
-            tcs.push({id:idx++, type:'session_switch', session:wss,
-              name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
+            if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before Extended for Security)'});
+              }
+              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+                name:'PRECOND Switch to Extended for Security Unlock'});
+              tcs.push({id:idx++, type:'security_unlock', level:wsec31,
+                name:'SECURITY unlock '+wsec31});
+              if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
+              }
+              tcs.push({id:idx++, type:'session_switch', session:wss,
+                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
           } else {
             tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
           }
@@ -2161,10 +2170,18 @@ function buildTestcases(cfg) {
             // If current write session (wss) isn't Extended, switch there first,
             // unlock, then switch back to the target write session.
             if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
+              if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before Extended for Security)'});
+              }
               tcs.push({id:idx++, type:'session_switch', session:sess.extended,
                 name:'PRECOND Switch to Extended for Security Unlock'});
               tcs.push({id:idx++, type:'security_unlock', level:wsec,
                 name:'SECURITY unlock '+wsec});
+              if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
+              }
               tcs.push({id:idx++, type:'session_switch', session:wss,
                 name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
             } else {
@@ -2197,12 +2214,20 @@ function buildTestcases(cfg) {
             name:'2E '+hi+' '+lo+' ['+writeVal+'] WITHOUT unlock → NEG 7F 2E 33'});
           // Security seed/key (27 01/02) is only valid in Extended session.
           if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
-            tcs.push({id:idx++, type:'session_switch', session:sess.extended,
-              name:'PRECOND Switch to Extended for Security Unlock'});
-            tcs.push({id:idx++, type:'security_unlock', level:wsec,
-              name:'SECURITY unlock '+wsec});
-            tcs.push({id:idx++, type:'session_switch', session:wss,
-              name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
+            if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before Extended for Security)'});
+              }
+              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
+                name:'PRECOND Switch to Extended for Security Unlock'});
+              tcs.push({id:idx++, type:'security_unlock', level:wsec,
+                name:'SECURITY unlock '+wsec});
+              if(wss.toLowerCase()!==sess.default.toLowerCase()){
+                tcs.push({id:idx++, type:'session_switch', session:sess.default,
+                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
+              }
+              tcs.push({id:idx++, type:'session_switch', session:wss,
+                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
           } else {
             tcs.push({id:idx++, type:'security_unlock', level:wsec,
               name:'SECURITY unlock '+wsec});
