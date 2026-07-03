@@ -24,6 +24,7 @@
   --r:     4px;
   --r2:    8px;
   --r3:    999px;
+  --footer-h: 44px;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -34,6 +35,7 @@ body {
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  padding-bottom: var(--footer-h);
 }
 
 /* ── GRID BACKGROUND ─────────────────────────────────────── */
@@ -370,22 +372,26 @@ section { position: relative; z-index: 10; }
 .cta-step-title { font-weight: 600; font-size: 13px; color: var(--ink); }
 .cta-step-desc { font-size: 12px; color: var(--mid); margin-top: 2px; line-height: 1.5; }
 
-/* ── FOOTER ───────────────────────────────────────────────── */
+/* ── FOOTER (persistent, always visible bottom bar) ────────── */
 footer {
-  position: relative; z-index: 10;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 100;
+  height: var(--footer-h);
   border-top: 1px solid var(--rule);
-  padding: 28px 32px;
+  padding: 0 32px;
   display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 12px; background: var(--white);
+  flex-wrap: nowrap; gap: 12px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
 }
-.footer-left { display: flex; align-items: center; gap: 20px; }
+.footer-left { display: flex; align-items: center; gap: 20px; min-width: 0; }
 .footer-logo {
   font-family: 'Big Shoulders Display', sans-serif;
-  font-weight: 800; font-size: 17px; color: var(--ink); text-decoration: none;
+  font-weight: 800; font-size: 15px; color: var(--ink); text-decoration: none;
+  flex-shrink: 0;
 }
 .footer-logo span { color: var(--blue); }
-.footer-copy { font-size: 12px; color: var(--light); }
-.footer-links { display: flex; gap: 16px; }
+.footer-copy { font-size: 12px; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.footer-links { display: flex; gap: 16px; flex-shrink: 0; }
 .footer-links a { font-size: 12px; color: var(--mid); text-decoration: none; transition: color .15s; }
 .footer-links a:hover { color: var(--ink); }
 
@@ -411,6 +417,9 @@ footer {
   .hero-stats { flex-direction: column; }
   .hstat { border-right: none; border-bottom: 1px solid var(--rule); }
   .hstat:last-child { border-bottom: none; }
+  :root { --footer-h: 68px; }
+  footer { flex-wrap: wrap; padding: 8px 16px; height: auto; }
+  .footer-copy { display: none; }
 }
 </style>
 </head>
