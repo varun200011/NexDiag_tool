@@ -1941,24 +1941,7 @@ function buildTestcases(cfg) {
         if(wsec31){
           tcs.push({id:idx++,type:'routine_no_unlock',did_hi:hi31,did_lo:lo31,
             name:'31 01 '+hi31+' '+lo31+' WITHOUT unlock → NEG 7F 31 33'});
-          if(wsec31==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
-            if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before Extended for Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
-                name:'PRECOND Switch to Extended for Security Unlock'});
-              tcs.push({id:idx++, type:'security_unlock', level:wsec31,
-                name:'SECURITY unlock '+wsec31});
-              if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:wss,
-                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
-          } else {
-            tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
-          }
+          tcs.push({id:idx++,type:'security_unlock',level:wsec31,name:'SECURITY unlock '+wsec31});
         }
         tcs.push({id:idx++,type:'routine_results_before_start',did_hi:hi31,did_lo:lo31,
           name:'31 03 '+hi31+' '+lo31+' requestResults BEFORE start → NEG 7F 31 24'});
@@ -2166,28 +2149,10 @@ function buildTestcases(cfg) {
             tcs.push({id:idx++, type:'write_no_unlock', did_hi:hi, did_lo:lo,
               total_len:tlen, mf:mf, write_val:dispVal,
               name:'2E '+hi+' '+lo+' '+dispVal+' WITHOUT unlock → NEG 7F 2E 33'});
-            // Security seed/key (27 01/02) is only valid in Extended session.
-            // If current write session (wss) isn't Extended, switch there first,
-            // unlock, then switch back to the target write session.
-            if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
-              if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before Extended for Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
-                name:'PRECOND Switch to Extended for Security Unlock'});
-              tcs.push({id:idx++, type:'security_unlock', level:wsec,
-                name:'SECURITY unlock '+wsec});
-              if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:wss,
-                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
-            } else {
-              tcs.push({id:idx++, type:'security_unlock', level:wsec,
-                name:'SECURITY unlock '+wsec});
-            }
+            // Security seed/key (27 01/02) is applicable directly in the
+            // current write session (0x02 or 0x03) — no forced detour needed.
+            tcs.push({id:idx++, type:'security_unlock', level:wsec,
+              name:'SECURITY unlock '+wsec});
           }
           if (posOrNeg === 'POS') {
             tcs.push({id:idx++, type:'write_after_unlock', did_hi:hi, did_lo:lo,
@@ -2212,26 +2177,10 @@ function buildTestcases(cfg) {
           tcs.push({id:idx++, type:'write_no_unlock', did_hi:hi, did_lo:lo,
             total_len:tlen, mf:mf, write_val:writeVal,
             name:'2E '+hi+' '+lo+' ['+writeVal+'] WITHOUT unlock → NEG 7F 2E 33'});
-          // Security seed/key (27 01/02) is only valid in Extended session.
-          if(wsec==='level1' && wss.toLowerCase()!==sess.extended.toLowerCase()){
-            if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before Extended for Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:sess.extended,
-                name:'PRECOND Switch to Extended for Security Unlock'});
-              tcs.push({id:idx++, type:'security_unlock', level:wsec,
-                name:'SECURITY unlock '+wsec});
-              if(wss.toLowerCase()!==sess.default.toLowerCase()){
-                tcs.push({id:idx++, type:'session_switch', session:sess.default,
-                  name:'PRECOND Return to Default (before '+sName(wss)+' after Security)'});
-              }
-              tcs.push({id:idx++, type:'session_switch', session:wss,
-                name:'PRECOND Return to '+sName(wss)+' after Security Unlock'});
-          } else {
-            tcs.push({id:idx++, type:'security_unlock', level:wsec,
-              name:'SECURITY unlock '+wsec});
-          }
+          // Security seed/key (27 01/02) is applicable directly in the
+          // current write session (0x02 or 0x03) — no forced detour needed.
+          tcs.push({id:idx++, type:'security_unlock', level:wsec,
+            name:'SECURITY unlock '+wsec});
         }
 
         if (hasRange) {
@@ -2711,7 +2660,7 @@ function generateCapl(cfg, tcs) {
     '  byte expType,expPosSid,expEchoMode,expEchoByte,expDidHi,expDidLo,expNegSid,expNrc;\n' +
     '  int expTotalLen=0,defChkEn=0,passCount=0,failCount=0;\n' +
     '  byte defDidHi=0,defDidLo=0,defExpected=0,r0,r1,r2,r3,r4,r5,r6,r7;\n' +
-    '  int RESP_TIMEOUT_MS=1500,SESS_TIMEOUT_MS=4000,PENDING_RETRY_MS=1500,pendingSeen=0;\n' +
+    '  int RESP_TIMEOUT_MS=1500,SESS_TIMEOUT_MS=6000,PENDING_RETRY_MS=1500,pendingSeen=0;\n' +
     '  byte manualWait=0;\n' +
     '  int isoTpTc=0,isoTpStage=0,isoCfIdx=0,isoDataIdx=0,wrLen=0;\n' +
     '  byte wrBuf[128],wrRbActive=0,wrDidHi=0,wrDidLo=0;\n' +
@@ -2761,20 +2710,23 @@ function generateCapl(cfg, tcs) {
     'on key \'r\'{\n  if(testRunning){write("Already running");return;}\n  tcCount=getTcCount();tcIndex=0;\n  passCount=0;failCount=0;pendingSeen=0;manualWait=0;testRunning=1;\n  startTesterPresent();\n  write("=== RUN START: '+proj+' ===");\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
     'on message '+ch+'.'+rx+'{\n' +
     '  r0=this.byte(0);r1=this.byte(1);r2=this.byte(2);r3=this.byte(3);\n  r4=this.byte(4);r5=this.byte(5);r6=this.byte(6);r7=this.byte(7);\n' +
-    '  if(secAutoActive){\n    cancelTimer(respTimer);\n    if(secAutoStep==2){\n      if(r1==0x67){\n        seed4ToHex(r3,r4,r5,r6,autoSeedHex);\n        write("AUTO SEC SEED=%s",autoSeedHex);\n'+keyDispatch+'\n        return;\n      }\n      write("AUTO SEC FAIL: Exp 67xx got %02X",r1);\n      failCount++;secAutoActive=0;setTimer(nextTimer,150);return;\n    }\n    if(secAutoStep==3){\n      if(r1==0x67&&r2==((secLevel==2)?0x62:0x02)){write("AUTO SEC PASS");passCount++;}\n      else{write("AUTO SEC FAIL: Exp 67 %02X",(secLevel==2)?0x62:0x02);failCount++;}\  secAutoActive=0;secAutoStep=0;secWaitKey=0;setTimer(nextTimer,150);return;\n    }\n  }\n' +
+    '  if(secAutoActive){\n    cancelTimer(respTimer);\n    if(secAutoStep==2){\n      if(r1==0x67){\n        seed4ToHex(r3,r4,r5,r6,autoSeedHex);\n        write("AUTO SEC SEED=%s",autoSeedHex);\n'+keyDispatch+'\n        return;\n      }\n      write("AUTO SEC FAIL: Exp 67xx got %02X",r1);\n      failCount++;secAutoActive=0;setTimer(nextTimer,300);return;\n    }\n    if(secAutoStep==3){\n      if(r1==0x67&&r2==((secLevel==2)?0x62:0x02)){write("AUTO SEC PASS");passCount++;}\n      else{write("AUTO SEC FAIL: Exp 67 %02X",(secLevel==2)?0x62:0x02);failCount++;}\  secAutoActive=0;secAutoStep=0;secWaitKey=0;setTimer(nextTimer,300);return;\n    }\n  }\n' +
     '  if(!testRunning||!waitingResp)return;\n  cancelTimer(respTimer);\n' +
     '  if((r0&0xF0)==0x30){setTimer(DID_2E,10);waitingResp=1;return;}\n' +
-    '  if(isoTpStage>0){waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n' +
+    '  if(isoTpStage>0){\n' +
+    '    if((r0&0xF0)==0x00&&r1==0x7F){isoTpStage=0;isoTpTc=0;isoCfIdx=0;cancelTimer(DID_2E);}\n' +
+    '    else{waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n' +
+    '  }\n' +
     '  if(r1==0x7F&&r3==0x78){pendingSeen=1;write("PENDING 7F %02X 78",r2);waitingResp=1;setTimer(respTimer,PENDING_RETRY_MS);return;}\n' +
     '  waitingResp=0;\n  print8("RSP",r0,r1,r2,r3,r4,r5,r6,r7);\n' +
-    '  if(expType==2){write("RESULT:FAIL unexpected response");failCount++;setTimer(nextTimer,150);return;}\n' +
-    '  if(expType==1){\n    if(r1==0x7F&&r2==expNegSid&&r3==expNrc){write("RESULT:PASS NEG 7F %02X %02X",r2,r3);passCount++;}\n    else{write("RESULT:FAIL NEG mismatch Got 7F %02X %02X Exp 7F %02X %02X",r2,r3,expNegSid,expNrc);failCount++;}\n    setTimer(nextTimer,150);return;\n  }\n' +
-    '  if(expEchoMode!=3){\n    if((r0&0xF0)==0x10)_checkSid=r2;else _checkSid=r1;\n    if(_checkSid!=expPosSid){write("RESULT:FAIL SID %02X Exp %02X",_checkSid,expPosSid);failCount++;setTimer(nextTimer,150);return;}\n    if(expEchoMode==1){if(r2==expEchoByte){write("RESULT:PASS");passCount++;}else{write("RESULT:FAIL echo %02X Exp %02X",r2,expEchoByte);failCount++;}}\n    else if(expEchoMode==2){if(r2==expDidHi&&r3==expDidLo){write("RESULT:PASS DID");passCount++;}else{write("RESULT:FAIL DID");failCount++;}}\n    else{write("RESULT:PASS");passCount++;}\n  }else{\n    if((r0&0xF0)==0x00){_pl=(r0&0x0F);_sid=r1;_dhi=r2;_dlo=r3;}\n    else{_pl=((r0&0x0F)<<8)|r1;_sid=r2;_dhi=r3;_dlo=r4;}\n    if(_sid!=expPosSid){write("RESULT:FAIL SID");failCount++;setTimer(nextTimer,150);return;}\n    if(_dhi!=expDidHi||_dlo!=expDidLo){write("RESULT:FAIL DID");failCount++;setTimer(nextTimer,150);return;}\n    if(_pl!=expTotalLen){write("RESULT:FAIL LEN %d Exp %d",_pl,expTotalLen);failCount++;setTimer(nextTimer,150);return;}\n    if(defChkEn&&_sid==0x62&&_dhi==defDidHi&&_dlo==defDidLo){\n      /* _dataByte is global */\n      if((r0&0xF0)==0x00)_dataByte=r4;else _dataByte=r5;\n      if(_dataByte==defExpected)write("DEFCHK:PASS %02X",_dataByte);\n      else{write("DEFCHK:FAIL got %02X exp %02X",_dataByte,defExpected);failCount++;setTimer(nextTimer,150);return;}\n      defChkEn=0;\n    }\n    write("RESULT:PASS DID+LEN OK");passCount++;\n  }\n' +
-    '  if(isoTpTc==tcId){isoTpStage=0;isoTpTc=0;isoCfIdx=0;}\n  setTimer(nextTimer,150);\n}\n\n' +
-    'on timer respTimer{\n  if(secAutoActive){write("AUTO SEC TIMEOUT");failCount++;secAutoActive=0;waitingResp=0;setTimer(nextTimer,150);return;}\n  if(!testRunning||!waitingResp)return;\n  waitingResp=0;\n  if(expType==2){write("RESULT:PASS no response");passCount++;}\n  else{write("RESULT:FAIL timeout");failCount++;}\n  setTimer(nextTimer,150);\n}\n\n' +
+    '  if(expType==2){write("RESULT:FAIL unexpected response");failCount++;setTimer(nextTimer,300);return;}\n' +
+    '  if(expType==1){\n    if(r1==0x7F&&r2==expNegSid&&r3==expNrc){write("RESULT:PASS NEG 7F %02X %02X",r2,r3);passCount++;}\n    else{write("RESULT:FAIL NEG mismatch Got 7F %02X %02X Exp 7F %02X %02X",r2,r3,expNegSid,expNrc);failCount++;}\n    setTimer(nextTimer,300);return;\n  }\n' +
+    '  if(expEchoMode!=3){\n    if((r0&0xF0)==0x10)_checkSid=r2;else _checkSid=r1;\n    if(_checkSid!=expPosSid){write("RESULT:FAIL SID %02X Exp %02X",_checkSid,expPosSid);failCount++;setTimer(nextTimer,300);return;}\n    if(expEchoMode==1){if(r2==expEchoByte){write("RESULT:PASS");passCount++;}else{write("RESULT:FAIL echo %02X Exp %02X",r2,expEchoByte);failCount++;}}\n    else if(expEchoMode==2){if(r2==expDidHi&&r3==expDidLo){write("RESULT:PASS DID");passCount++;}else{write("RESULT:FAIL DID");failCount++;}}\n    else{write("RESULT:PASS");passCount++;}\n  }else{\n    if((r0&0xF0)==0x00){_pl=(r0&0x0F);_sid=r1;_dhi=r2;_dlo=r3;}\n    else{_pl=((r0&0x0F)<<8)|r1;_sid=r2;_dhi=r3;_dlo=r4;}\n    if(_sid!=expPosSid){write("RESULT:FAIL SID");failCount++;setTimer(nextTimer,300);return;}\n    if(_dhi!=expDidHi||_dlo!=expDidLo){write("RESULT:FAIL DID");failCount++;setTimer(nextTimer,300);return;}\n    if(_pl!=expTotalLen){write("RESULT:FAIL LEN %d Exp %d",_pl,expTotalLen);failCount++;setTimer(nextTimer,300);return;}\n    if(defChkEn&&_sid==0x62&&_dhi==defDidHi&&_dlo==defDidLo){\n      /* _dataByte is global */\n      if((r0&0xF0)==0x00)_dataByte=r4;else _dataByte=r5;\n      if(_dataByte==defExpected)write("DEFCHK:PASS %02X",_dataByte);\n      else{write("DEFCHK:FAIL got %02X exp %02X",_dataByte,defExpected);failCount++;setTimer(nextTimer,300);return;}\n      defChkEn=0;\n    }\n    write("RESULT:PASS DID+LEN OK");passCount++;\n  }\n' +
+    '  if(isoTpTc==tcId){isoTpStage=0;isoTpTc=0;isoCfIdx=0;}\n  setTimer(nextTimer,300);\n}\n\n' +
+    'on timer respTimer{\n  if(secAutoActive){write("AUTO SEC TIMEOUT");failCount++;secAutoActive=0;waitingResp=0;setTimer(nextTimer,300);return;}\n  if(!testRunning||!waitingResp)return;\n  waitingResp=0;\n  if(expType==2){write("RESULT:PASS no response");passCount++;}\n  else{write("RESULT:FAIL timeout");failCount++;}\n  setTimer(nextTimer,300);\n}\n\n' +
     'on timer nextTimer{\n  secAutoActive=0;secAutoStep=0;secWaitKey=0;cancelTimer(tKeyPollAuto);\n  if(!testRunning||manualWait)return;\n  tcIndex++;\n  if(tcIndex>=tcCount){\n    write("=== COMPLETE: '+proj+' PASS=%d FAIL=%d",passCount,failCount);\n    testRunning=0;stopTesterPresent();return;\n  }\n  loadTestcase(tcIndex);sendCurrentTc();\n}\n\n' +
     'on timer tTesterPresent{\n  if(!testerPresentOn)return;\n  if(waitingResp||secAutoActive){setTimer(tTesterPresent,TP_PERIOD_MS);return;}\n  req.dir=Tx;req.dlc=8;req.byte(0)=0x02;req.byte(1)=0x3E;req.byte(2)=0x80;\n  req.byte(3)=0;req.byte(4)=0;req.byte(5)=0;req.byte(6)=0;req.byte(7)=0;\n  output(req);setTimer(tTesterPresent,TP_PERIOD_MS);\n}\n\n' +
-    'on timer tKeyPollAuto{\n  if(!secAutoActive||!secWaitKey)return;\n  secPollCount++;\n  if(secPollCount==1){write("KEY POLL: waiting for bin at: %s",autoBinPath);}\n  if(secPollCount>150){write("KEY TIMEOUT after 30s — check EXE path and permissions: %s",autoBinPath);failCount++;secWaitKey=0;secAutoActive=0;setTimer(nextTimer,150);return;}\n  _ok=read8BytesBinary(autoBinPath,autoKeyFrame);\n  if(!_ok){setTimer(tKeyPollAuto,200);return;}\n  secWaitKey=0;\n  write("KEY BIN FOUND after %d polls",secPollCount);\n  if(secLevel==2) autoKeyFrame[2]=0x62;\n  req.dir=Tx;req.dlc=8;\n  req.byte(0)=autoKeyFrame[0];req.byte(1)=autoKeyFrame[1];req.byte(2)=autoKeyFrame[2];\n  req.byte(3)=autoKeyFrame[3];req.byte(4)=autoKeyFrame[4];req.byte(5)=autoKeyFrame[5];\n  req.byte(6)=autoKeyFrame[6];req.byte(7)=autoKeyFrame[7];\n  output(req);secAutoStep=3;waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);\n}\n\n' +
+    'on timer tKeyPollAuto{\n  if(!secAutoActive||!secWaitKey)return;\n  secPollCount++;\n  if(secPollCount==1){write("KEY POLL: waiting for bin at: %s",autoBinPath);}\n  if(secPollCount>150){write("KEY TIMEOUT after 30s — check EXE path and permissions: %s",autoBinPath);failCount++;secWaitKey=0;secAutoActive=0;setTimer(nextTimer,300);return;}\n  _ok=read8BytesBinary(autoBinPath,autoKeyFrame);\n  if(!_ok){setTimer(tKeyPollAuto,200);return;}\n  secWaitKey=0;\n  write("KEY BIN FOUND after %d polls",secPollCount);\n  if(secLevel==2) autoKeyFrame[2]=0x62;\n  req.dir=Tx;req.dlc=8;\n  req.byte(0)=autoKeyFrame[0];req.byte(1)=autoKeyFrame[1];req.byte(2)=autoKeyFrame[2];\n  req.byte(3)=autoKeyFrame[3];req.byte(4)=autoKeyFrame[4];req.byte(5)=autoKeyFrame[5];\n  req.byte(6)=autoKeyFrame[6];req.byte(7)=autoKeyFrame[7];\n  output(req);secAutoStep=3;waitingResp=1;setTimer(respTimer,RESP_TIMEOUT_MS);\n}\n\n' +
     'on timer DID_2E{\n  if(isoTpStage==0)return;\n  _sn=0x20+isoCfIdx;\n  req.dir=Tx;req.dlc=8;req.byte(0)=_sn;\n  _left=wrLen-isoDataIdx;\n  for(_k=0;_k<7;_k++){if(_k<_left)req.byte(1+_k)=wrBuf[isoDataIdx+_k];else req.byte(1+_k)=0x00;}\n  output(req);\n  isoDataIdx+=7;isoCfIdx++;\n  if(isoDataIdx>=wrLen||isoCfIdx>15){isoTpStage=0;cancelTimer(DID_2E);setTimer(respTimer,RESP_TIMEOUT_MS);return;}\n  setTimer(DID_2E,10);\n}\n';
 }
 
