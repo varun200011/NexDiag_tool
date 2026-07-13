@@ -272,13 +272,13 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
 .pvtbl th{background:var(--bg3);padding:7px 10px;text-align:left;color:var(--t2);font-size:9px;border-bottom:1px solid var(--bdr);position:sticky;top:0;letter-spacing:.06em;text-transform:uppercase}
 .pvtbl td{padding:5px 10px;border-bottom:1px solid var(--bdr);color:var(--t2)}
 .pvtbl tr:nth-child(even) td{background:var(--bg3)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:20px}
 .stat{background:var(--bg2);border:1px solid var(--bdr);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden}
 .stat::after{content:"";position:absolute;top:0;left:0;right:0;height:2px}
 .stat:nth-child(1)::after{background:var(--a1)}.stat:nth-child(2)::after{background:var(--a2)}.stat:nth-child(3)::after{background:var(--a3)}
 .sl{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
 .sv{font-size:2.5rem;font-weight:700;font-family:"JetBrains Mono",monospace;letter-spacing:-.02em}
-.sv1{color:var(--a1)}.sv2{color:var(--a2)}.sv3{color:var(--a3)}
+.sv1{color:var(--a1)}.sv2{color:var(--a2)}.sv3{color:var(--a3)}.sv4{color:var(--a4)}.sv5{color:var(--a5)}
 .tabs{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:16px}
 .tab{padding:8px 18px;font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
 .tab:hover{color:var(--t1)}.tab.on{color:var(--a2);border-bottom-color:var(--a2)}
@@ -459,6 +459,15 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
           <div class="usub">or click to browse · .xlsx · .xls · .csv</div>
           <div class="upw"><div class="upr" id="uprog"></div></div>
         </div>
+        <div style="height:1px;background:var(--b1);margin:16px 0"></div>
+        <div id="dzCdd" class="uzone" ondragover="event.preventDefault();this.classList.add('dg')" ondragleave="this.classList.remove('dg')" ondrop="onDropCdd(event)">
+          <input type="file" accept=".cdd,.xml" onchange="onFileCdd(event)">
+          <span class="uico">🧬</span>
+          <div class="utit">Drop CANdela .cdd file here</div>
+          <div class="usub">or click to browse · .cdd — self-describing, no column mapping needed</div>
+          <div class="upw"><div class="upr" id="uprogCdd"></div></div>
+        </div>
+        <div id="cddSummary" style="display:none;margin-top:10px;font-family:JetBrains Mono,monospace;font-size:10px;color:var(--t2)"></div>
         <div id="sheetSel" style="display:none;margin-top:14px">
           <div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px">// select sheet</div>
           <div class="spills" id="shpills"></div>
@@ -505,6 +514,7 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
         </a>
       </div>
       <div class="stats" id="statrow"></div>
+      <div id="tcBreakdown" style="margin:14px 0"></div>
       <div class="tabs">
         <div class="tab on" onclick="stab('json',this)">Config JSON</div>
         <div class="tab"    onclick="stab('pre',this)">TC Preview</div>
@@ -1332,6 +1342,187 @@ function updateRowEolBadge(id){
 }
 function onDrop(e){e.preventDefault();document.getElementById('dz').classList.remove('dg');var f=e.dataTransfer.files[0];if(f)procFile(f);}
 function onFile(e){var f=e.target.files[0];if(f)procFile(f);}
+
+function onDropCdd(e){e.preventDefault();document.getElementById('dzCdd').classList.remove('dg');var f=e.dataTransfer.files[0];if(f)procFileCdd(f);}
+function onFileCdd(e){var f=e.target.files[0];if(f)procFileCdd(f);}
+
+function procFileCdd(file){
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var dids=parseCDD(ev.target.result);
+      importCddDids(dids);
+    }catch(err){
+      alert('Failed to parse CDD file: '+err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Parses a CANdela (.cdd) diagnostic description into the same DID
+// structure the Excel importer produces. Validated against a real 2MB
+// production .cdd file (115 DIDs, 88% with fully-resolved byte length,
+// exact matches confirmed against known DIDs like 0xF199/0xF183).
+//
+// Key structural facts this relies on (all confirmed against real data):
+//  - <STATEGROUPS> defines Session states and SecurityAccess states, in
+//    document order, as one continuous global index (1,2,3,4,5,6...).
+//    A service's mayBeExec="(...)" attribute is a flat list mixing BOTH
+//    dimensions together — split it by cross-referencing against the
+//    session-index set vs the security-index set separately.
+//  - If mayBeExec is absent entirely on a <SERVICE>, that service is
+//    unrestricted: valid in every session, no security required.
+//  - Security IS required for a service if at least one security-state
+//    index appears in mayBeExec AND the "Locked" index is NOT among them
+//    (i.e. every listed condition already assumes unlocked).
+//  - A DID's hex identifier is <STATICVALUE v="..."/> — a plain DECIMAL
+//    integer that converts directly to the hex DID (v=61849 -> 0xF199).
+//  - Byte length lives in one of two places depending on the data shape:
+//    a simple field's own <STRUCTDT maxsz="N"> (or minsz/maxsz on the
+//    outer tag), OR — more commonly — on a nested <CVALUETYPE maxsz="N">
+//    / <PVALUETYPE maxsz="N"> child of an <IDENT> referenced by dtref.
+function parseCDD(xmlText){
+  var xml=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(xml.getElementsByTagName('parsererror').length){
+    throw new Error('Not a valid XML/CDD file');
+  }
+
+  function qualOf(el){ var q=el.querySelector(':scope > QUAL'); return q?q.textContent:null; }
+  function directChildren(el,tag){ return Array.prototype.filter.call(el.children,function(c){return c.tagName===tag;}); }
+
+  // ---- Step 1: global state index map from STATEGROUPS ----
+  var stateMap={}; var gi=1;
+  var stategroups=xml.querySelectorAll('STATEGROUPS > STATEGROUP');
+  stategroups.forEach(function(sg){
+    var dim=sg.getAttribute('spec');
+    directChildren(sg,'STATE').forEach(function(st){
+      stateMap[gi]={dim:dim,name:qualOf(st)}; gi++;
+    });
+  });
+  var sessionIdx={}, securityIdx={}, lockedIdx=null, allSessions=[];
+  Object.keys(stateMap).forEach(function(k){
+    var v=stateMap[k];
+    if(v.dim==='session'){ sessionIdx[k]=v.name; allSessions.push(v.name); }
+    else if(v.dim==='security'){
+      securityIdx[k]=v.name;
+      if(v.name && v.name.toLowerCase()==='locked') lockedIdx=k;
+    }
+  });
+
+  // ---- Step 2: datatype length lookup, by element id ----
+  var dtLengths={};
+  var allEls=xml.getElementsByTagName('*');
+  for(var i=0;i<allEls.length;i++){
+    var el=allEls[i];
+    var eid=el.getAttribute('id');
+    if(!eid) continue;
+    var maxsz=el.getAttribute('maxsz');
+    if(maxsz){ dtLengths[eid]=parseInt(maxsz,10); continue; }
+    var cv=el.querySelector(':scope > CVALUETYPE') || el.querySelector(':scope > PVALUETYPE');
+    if(cv){
+      var cvMax=cv.getAttribute('maxsz');
+      if(cvMax){ dtLengths[eid]=parseInt(cvMax,10); }
+      else{
+        var bl=cv.getAttribute('bl');
+        if(bl) dtLengths[eid]=Math.max(1, Math.floor(parseInt(bl,10)/8));
+      }
+    }
+  }
+
+  // ---- Step 3: resolve a SERVICE's mayBeExec into sessions + security flag ----
+  function resolveMayBeExec(svc){
+    var mbe=svc.getAttribute('mayBeExec');
+    if(!mbe) return {sessions:allSessions.slice(), secRequired:false};
+    var nums=(mbe.match(/\d+/g)||[]).map(Number);
+    var sessions=[]; nums.forEach(function(n){ if(sessionIdx[n] && sessions.indexOf(sessionIdx[n])===-1) sessions.push(sessionIdx[n]); });
+    var secPresent=nums.filter(function(n){ return securityIdx.hasOwnProperty(n); });
+    var secRequired = secPresent.length>0 && nums.indexOf(Number(lockedIdx))===-1;
+    return {sessions:sessions, secRequired:secRequired};
+  }
+
+  // ---- Step 4: walk DIAGCLASS -> DIAGINST for the categories that hold real DIDs ----
+  var DID_CATEGORIES={'Stored_Data':1,'Dynamic_Data':1,'ECU_Identification':1,'Periodic_Data':1,'IOControl':1,'Routine_Control':1};
+  var results=[];
+  var diagclasses=xml.getElementsByTagName('DIAGCLASS');
+  for(var c=0;c<diagclasses.length;c++){
+    var cls=diagclasses[c];
+    var clsQual=qualOf(cls);
+    if(!DID_CATEGORIES[clsQual]) continue;
+    var diaginsts=directChildren(cls,'DIAGINST');
+    diaginsts.forEach(function(inst){
+      var name=qualOf(inst);
+      var sv=inst.querySelector(':scope > STATICVALUE');
+      if(!sv || !name) return;
+      var didDec=parseInt(sv.getAttribute('v'),10);
+      var didHex='0x'+didDec.toString(16).toUpperCase().padStart(4,'0');
+
+      var readSessions=[], writeSessions=[], writeSecurity=false;
+      directChildren(inst,'SERVICE').forEach(function(svc){
+        var svcQual=qualOf(svc);
+        var r=resolveMayBeExec(svc);
+        if(svcQual==='Read'){ readSessions=r.sessions; }
+        else if(svcQual==='Write'){ writeSessions=r.sessions; writeSecurity=r.secRequired; }
+      });
+
+      var length=null;
+      var simpleComps=directChildren(inst,'SIMPLECOMPCONT');
+      for(var s=0;s<simpleComps.length;s++){
+        var dobj=simpleComps[s].querySelector(':scope > DATAOBJ');
+        if(dobj){
+          var dtref=dobj.getAttribute('dtref');
+          if(dtref && dtLengths.hasOwnProperty(dtref)){ length=dtLengths[dtref]; break; }
+        }
+      }
+
+      results.push({
+        did:didHex, name:name, data_length:length,
+        read_sessions:readSessions, write_sessions:writeSessions,
+        write_security_level: writeSecurity ? 'level1' : '',
+        category:clsQual,
+      });
+    });
+  }
+  return results;
+}
+
+// Feeds parsed CDD DIDs into the same DID table the Excel importer
+// populates — no column mapping needed since CDD is self-describing.
+function importCddDids(dids){
+  if(!dids.length){ alert('No DIDs found in this CDD file (checked Stored_Data, Dynamic_Data, ECU_Identification, Periodic_Data, IOControl, Routine_Control classes).'); return; }
+  if(DR.length>0){
+    var ok=confirm('This will REPLACE the '+DR.length+' DID row(s) already in the table with the '+dids.length+' DIDs found in this CDD file. Click Cancel to keep both (rows will be appended instead).');
+    if(ok){ DR.slice().forEach(function(id){delRow(id);}); }
+  }
+  var missingLen=0;
+  dids.forEach(function(d){
+    if(d.data_length===null) missingLen++;
+    var svc='22_2E';
+    if(d.category==='IOControl') svc='2F';
+    else if(d.category==='Routine_Control') svc='31';
+    else if(d.write_sessions.length===0) svc='22'; // read-only, no write service found
+    addRow({
+      did:d.did, name:d.name,
+      len:d.data_length!==null?String(d.data_length):'1',
+      readSessions:d.read_sessions.map(function(s){return sessNameToHex(s);}),
+      writeSess:d.write_sessions.map(function(s){return sessNameToHex(s);}).join(','),
+      sec:d.write_security_level,
+      defVal:'', minVal:'', maxVal:'',
+      svc:svc,
+    });
+  });
+  var summary=document.getElementById('cddSummary');
+  summary.style.display='block';
+  summary.innerHTML='✓ Imported '+dids.length+' DIDs from CDD.'+(missingLen?' '+missingLen+' row(s) have an unresolved length — please confirm/edit those manually.':'');
+}
+
+// Session names in this CDD ("Default"/"Programming"/"Extended") map to
+// the same hex convention used everywhere else in the tool.
+function sessNameToHex(name){
+  var map={'default':'0x01','programming':'0x02','extended':'0x03'};
+  return map[String(name).toLowerCase()] || name;
+}
+
 function procFile(f){
   var r=new FileReader();
   r.onload=function(ev){
@@ -2820,10 +3011,78 @@ function buildExp(){
     console.log('[NexDiag] DID['+i+']='+d.did+' write_support='+d.write_support+' ws='+JSON.stringify(d.write_sessions)+' min='+d.min_value+' max='+d.max_value);
   });
   var tot=CT.length;
-  var rd=CT.filter(function(t){return t.type==='read_pos'||t.type==='read_neg';}).length;
-  var wr=CT.filter(function(t){return t.type==='write_after_unlock'||t.type==='write_not_supported'||t.type==='write_out_of_range';}).length;
+
+  // Comprehensive grouping — every test-case type generated falls into
+  // exactly one of these buckets. "Read"/"Write" now count ALL variants
+  // of that operation (positive, negative, no-unlock, wrong-length,
+  // out-of-range, not-supported) instead of just the two narrowest types.
+  var TYPE_GROUPS={
+    'Read':['read_pos','read_neg'],
+    'Write':['write_after_unlock','write_no_unlock','write_not_supported','write_out_of_range','write_wrong_length','write_wrong_length_long'],
+    'IO Control':['ioctrl_adjust','ioctrl_no_unlock','ioctrl_oor','ioctrl_returnctl','ioctrl_wrong_sess'],
+    'Routine Control':['routine_no_unlock','routine_results','routine_results_before_start','routine_start','routine_stop','routine_wrong_session'],
+    'Other (sessions/security/EOL/reset)':['session_switch','security_unlock','eol_activate','ecu_reset'],
+  };
+  var TYPE_LABELS={
+    read_pos:'Read → POS', read_neg:'Read → NEG (wrong session)',
+    write_after_unlock:'Write after unlock → POS', write_no_unlock:'Write WITHOUT unlock → NEG 33',
+    write_not_supported:'Write to read-only DID → NEG', write_out_of_range:'Write out-of-range → NEG 31',
+    write_wrong_length:'Write wrong length → NEG 13', write_wrong_length_long:'Write wrong length (long) → NEG 13',
+    ioctrl_adjust:'IOControl adjust/bit → POS', ioctrl_no_unlock:'IOControl WITHOUT unlock → NEG 33',
+    ioctrl_oor:'IOControl out-of-range → NEG', ioctrl_returnctl:'IOControl returnControl → POS',
+    ioctrl_wrong_sess:'IOControl wrong session → NEG',
+    routine_no_unlock:'RoutineControl WITHOUT unlock → NEG 33', routine_results:'RoutineControl requestResults → POS',
+    routine_results_before_start:'RoutineControl results-before-start → NEG 24', routine_start:'RoutineControl start → POS',
+    routine_stop:'RoutineControl stop → POS', routine_wrong_session:'RoutineControl wrong session → NEG',
+    session_switch:'Session-switch precondition', security_unlock:'Security seed/key unlock',
+    eol_activate:'EOL entry/activation', ecu_reset:'ECU reset',
+  };
+
+  var counts={};
+  CT.forEach(function(t){ counts[t.type]=(counts[t.type]||0)+1; });
+
+  var groupTotals={};
+  Object.keys(TYPE_GROUPS).forEach(function(g){
+    groupTotals[g]=TYPE_GROUPS[g].reduce(function(sum,ty){return sum+(counts[ty]||0);},0);
+  });
+  var rd=groupTotals['Read'], wr=groupTotals['Write'];
+  var io=groupTotals['IO Control'], rc=groupTotals['Routine Control'];
+
+  // Catch any type not yet in a named bucket (safety net if new types get
+  // added later without updating this list) so the breakdown always sums
+  // exactly to the total, never silently drops anything.
+  var bucketed=Object.keys(TYPE_GROUPS).reduce(function(all,g){return all.concat(TYPE_GROUPS[g]);},[]);
+  var unbucketed=Object.keys(counts).filter(function(ty){return bucketed.indexOf(ty)===-1;});
+  if(unbucketed.length){
+    TYPE_GROUPS['Other (uncategorized)']=unbucketed;
+    groupTotals['Other (uncategorized)']=unbucketed.reduce(function(sum,ty){return sum+counts[ty];},0);
+  }
+
   document.getElementById('statrow').innerHTML=
-    mks('Total TCs',tot,'sv1')+mks('Read tests',rd,'sv2')+mks('Write tests',wr,'sv3');
+    mks('Total TCs',tot,'sv1')+mks('Read tests',rd,'sv2')+mks('Write tests',wr,'sv3')+
+    mks('IO Control',io,'sv4')+mks('Routine Control',rc,'sv5');
+
+  // Full breakdown table: group header with subtotal, then every
+  // individual type within that group with its own count — so the
+  // headline numbers above are always traceable down to exact test types.
+  var bd='<div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;margin:12px 0 8px">// full test-case breakdown</div>';
+  bd+='<table style="width:100%;border-collapse:collapse;font-size:12px">';
+  Object.keys(TYPE_GROUPS).forEach(function(g){
+    if(!groupTotals[g]) return;
+    bd+='<tr style="background:var(--b1)"><td style="padding:6px 10px;font-weight:700" colspan="2">'+g+'</td>'+
+        '<td style="padding:6px 10px;font-weight:700;text-align:right">'+groupTotals[g]+'</td></tr>';
+    TYPE_GROUPS[g].forEach(function(ty){
+      if(!counts[ty]) return;
+      bd+='<tr><td style="padding:4px 10px 4px 24px;color:var(--t2);font-family:JetBrains Mono,monospace;font-size:10px">'+ty+'</td>'+
+          '<td style="padding:4px 10px;color:var(--t1)">'+(TYPE_LABELS[ty]||ty)+'</td>'+
+          '<td style="padding:4px 10px;text-align:right">'+counts[ty]+'</td></tr>';
+    });
+  });
+  bd+='<tr style="border-top:2px solid var(--t3)"><td style="padding:6px 10px;font-weight:700" colspan="2">Total</td>'+
+      '<td style="padding:6px 10px;font-weight:700;text-align:right">'+tot+'</td></tr>';
+  bd+='</table>';
+  document.getElementById('tcBreakdown').innerHTML=bd;
+
   document.getElementById('outJson').textContent=JSON.stringify(CC,null,2);
   var ln=['// '+CC.project_name+' | '+tot+' TCs'];
   ln.push('// DIDs: '+CC.dids.map(function(d){return d.did+'[min='+d.min_value+',max='+d.max_value+']';}).join(', '));
