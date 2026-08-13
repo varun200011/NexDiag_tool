@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>NexDiag — CAPL UDS Generator</title>
+<title>NexDiag — CAPL & Robot Framework UDS Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -339,7 +339,7 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
   <canvas id="spCv"></canvas>
   <div class="sp-ui">
     <div class="sp-tag">Visteon Technology Centre India</div>
-    <div class="sp-ttl">Diag<em>CAPL</em> Generator</div>
+    <div class="sp-ttl">Diag<em>CAPL</em> + Robot Generator</div>
   </div>
   <div class="sp-skip" onclick="skipSplash()">Skip ›</div>
 </div>
@@ -352,7 +352,7 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
   </header>
   <div class="hhero">
     <h1 class="htitle">Nex<span>Diag</span><span class="blue">Generator</span></h1>
-    <p class="hsub">Generate compile-ready CAPL UDS test suites<br>from your SRD sheet — in minutes.</p>
+    <p class="hsub">Generate compile-ready CAPL and Robot Framework UDS test suites<br>from your SRD sheet or CANdela .cdd file — in minutes.</p>
     <button class="hcta" onclick="openApp()">Get Started <span class="arr">→</span></button>
   </div>
   <footer class="footer"><span>© 2026 Visteon · NexDiag</span></footer>
@@ -382,10 +382,11 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
       <div class="card"><div class="ct">Project details</div>
         <div class="g2">
           <div class="fld"><label>Project name</label><input id="pName" placeholder="e.g. RE_P3F2" oninput="document.getElementById('sbpv').textContent=this.value||'—'"></div>
-          <div class="fld"><label>Vehicle brand</label><select id="pBrand"><option>Royal Enfield</option><option>TVS</option><option>Honda</option><option>Bajaj</option><option>Hero</option><option>Other</option></select></div>
+           <div class="fld"><label>Vehicle brand</label><input id="pName" placeholder="e.g. Royal Enfield" oninput="document.getElementById('sbpv').textContent=this.value||'—'"></div>
+          
         </div>
         <div class="g2">
-          <div class="fld"><label>ECU / Cluster variant</label><input id="pEcu" placeholder="e.g. Instrument Cluster P3F2"></div>
+          <div class="fld"><label>Cluster variant</label><input id="pEcu" placeholder="e.g. P3F2"></div>
           <div class="fld"><label>Engineer name</label><input id="pEng" placeholder="e.g. Varun Nataraj"></div>
         </div>
       </div>
@@ -515,10 +516,44 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
       </div>
       <div class="stats" id="statrow"></div>
       <div id="tcBreakdown" style="margin:14px 0"></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="ct">Robot Framework export settings — required before generating .robot</div>
+        <div class="g3">
+          <div class="fld"><label>Common Tag (added to every test case)</label>
+            <input id="robotCommonTag" placeholder="e.g. nexdiag_auto">
+          </div>
+          <div class="fld"><label>NexDiagReporter.py Path <span style="color:#ef4444">*</span></label>
+            <input id="robotReporterPath" placeholder="e.g. C:/robofit_testframework/.../NexDiagReporter.py">
+          </div>
+          <div class="fld"><label>Report Output Directory <span style="color:#ef4444">*</span></label>
+            <input id="robotReportOutDir" placeholder="e.g. C:/robofit_testframework/.../Reports">
+          </div>
+          <div class="fld"><label>Response Wait Time (seconds)</label>
+            <input id="robotResponseWait" placeholder="3" value="3">
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">Lower = faster execution. Only raise this if your ECU genuinely needs longer to respond.</div>
+          </div>
+          <div class="fld"><label>Tester Present Bytes</label>
+            <input id="robotTesterPresentBytes" placeholder="3E 00" value="3E 00">
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">Most projects use "3E 00" (non-suppressed) or "3E 80" (suppressed). If your project needs a non-standard payload (e.g. "3E 00 01"), enter it here — the generator switches to a raw periodic CAN send for anything other than the two standard patterns.</div>
+          </div>
+          <div class="fld"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="robotVerboseLog" style="width:auto"> Verbose Console Logging</label>
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">Off (recommended) = strips ~7 redundant Log calls per test case, since NexDiagReporter.py already captures everything for the HTML report. Only enable this if you still rely on the old CAPL-style text-log report tool.</div>
+          </div>
+          <div class="fld"><label>Retry Attempts (total, incl. first try)</label>
+            <input id="robotRetryAttempts" placeholder="3" value="3">
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">Only applies to test cases that fail/get no response. Lower = faster, but less tolerant of transient timing misses. Set to 1 to disable retries entirely.</div>
+          </div>
+          <div class="fld"><label>Retry Delay (ms)</label>
+            <input id="robotRetryDelay" placeholder="300" value="300">
+            <div style="font-size:11px;color:var(--t2);margin-top:3px">If your execution wrapper has a fixed timeout, lowering attempts/delay here reduces total added runtime.</div>
+          </div>
+        </div>
+      </div>
       <div class="tabs">
         <div class="tab on" onclick="stab('json',this)">Config JSON</div>
         <div class="tab"    onclick="stab('pre',this)">TC Preview</div>
         <div class="tab"    onclick="stab('capl',this)">CAPL (.can)</div>
+        <div class="tab"    onclick="stabRobot(this)">Robot (.robot)</div>
       </div>
       <div id="tpjson" class="tpane on"><div class="obox" id="outJson">...</div>
         <div class="oa"><button class="btn btn-sm" onclick="cpOut('outJson')">⧉ Copy</button><button class="btn btn-g btn-sm" onclick="dlJson()">↓ JSON</button></div>
@@ -527,9 +562,13 @@ textarea{resize:vertical;min-height:68px;font-family:"JetBrains Mono",monospace;
       <div id="tpcapl" class="tpane"><div class="obox" id="outCapl">...</div>
         <div class="oa"><button class="btn btn-sm" onclick="cpOut('outCapl')">⧉ Copy</button><button class="btn btn-g btn-sm" onclick="dlCapl()">↓ Download .can</button></div>
       </div>
+      <div id="tprobot" class="tpane"><div class="obox" id="outRobot">...</div>
+        <div class="oa"><button class="btn btn-sm" onclick="cpOut('outRobot')">⧉ Copy</button><button class="btn btn-g btn-sm" onclick="dlRobot()">↓ Download .robot</button></div>
+      </div>
       <div class="nr" style="margin-top:20px">
         <button class="btn" onclick="go(4)">← Back</button>
         <button class="btn btn-p" onclick="dlCapl()">↓ Download .can</button>
+        <button class="btn btn-p" onclick="dlRobot()">↓ Download .robot</button>
       </div>
     </div>
   </main>
@@ -1244,7 +1283,7 @@ function openApp(){
     setTimeout(function(){appEl.classList.remove('page-enter');},450);
   },440);
 }
-var CS=0,DR=[],A1='EXE',AE='XOR',WB=null,SD=null,SH=[],CC=null,CT=null,CK=null;
+var CS=0,DR=[],A1='EXE',AE='XOR',WB=null,SD=null,SH=[],CC=null,CT=null,CK=null,CR=null;
 var SL=['01/06 · Project','02/06 · CAN IDs','03/06 · Sessions','04/06 · Security','05/06 · DIDs','06/06 · Export'];
 function go(n){
   var ni=document.querySelectorAll('.ni');
@@ -1687,7 +1726,25 @@ function importXL(){
     var ra=rs.split(/[,;\s]+/).map(function(s){return s.trim();}).filter(Boolean).map(function(s){if(s.startsWith('0x')||s.startsWith('0X'))return s.toLowerCase();var n=parseInt(s);return isNaN(n)?s:'0x'+n.toString(16);});
     if(!ra.length)ra=['0x01','0x03'];
     if(ws&&!ws.startsWith('0x')){var wn=parseInt(ws);if(!isNaN(wn))ws='0x'+wn.toString(16);}
-    if(sec&&sec!=='level1'&&sec!=='level_eol'){if(sec.includes('eol'))sec='level_eol';else if(sec.includes('1')||sec.includes('level'))sec='level1';else sec='';}
+    if(sec){
+      var secNorm=sec.trim().toLowerCase();
+      var levelMatch = secNorm.match(/level\s*[-_]?\s*0*([1-9][0-9]*)/);
+      var noWord = /\b(no|na|n\/a|none)\b/.test(secNorm);
+      if(secNorm==='level_eol' || secNorm.includes('eol')){
+        sec='level_eol';
+      } else if(levelMatch){
+        // Extract the level number from anywhere in the string, e.g.
+        // "YES ( Level-01)" -> level1, "Level-02" -> level2
+        sec='level'+levelMatch[1];
+      } else if(noWord){
+        sec='';
+      } else if(['yes','y','true','required','req','x','1'].indexOf(secNorm)>=0){
+        sec='level1';
+      } else {
+        // anything else unrecognized → no security required
+        sec='';
+      }
+    }
     if(dv&&!dv.startsWith('0x')){var dn=parseInt(dv);if(!isNaN(dn))dv='0x'+dn.toString(16).padStart(2,'0');}
     // Determine service: 2F if IOControl session filled, else 22/2E
     var svc='22_2E';
@@ -2988,11 +3045,411 @@ function generateCapl(cfg, tcs) {
 }
 
 // ─────────────────────────────────────────────
+// Robot Framework generator (CANRestBusHandler keywords)
+// ─────────────────────────────────────────────
+function generateRobot(cfg, tcs, opts) {
+  opts = opts || {};
+  var commonTag = (opts.commonTag||'').trim();
+  var reporterPath = (opts.reporterPath||'NexDiagReporter.py').trim().replace(/\\/g, '\\\\');
+  var reportOutDir = (opts.reportOutDir||'').trim().replace(/\\/g, '\\\\');
+  var responseWait = (opts.responseWait||'3').trim() || '3';
+  var verboseLog = !!opts.verboseLog;
+  var retryAttempts = parseInt(opts.retryAttempts, 10);
+  if (!retryAttempts || retryAttempts < 1) retryAttempts = 3;
+  var retryDelay = (opts.retryDelay||'300').trim() || '300';
+  var tpTimeoutSeconds = Math.round((parseFloat(responseWait) * retryAttempts) + ((retryAttempts-1) * parseFloat(retryDelay)/1000) + 5);
+  var tpBytesRaw = (opts.testerPresentBytes||'3E 00').trim().toUpperCase().replace(/0X/g,'');
+  var tpTokens = tpBytesRaw.split(/[\s,]+/).filter(function(t){return t.length>0;}).map(function(t){return t.padStart(2,'0');});
+  var tpBytesNorm = tpTokens.join(' ');
+  var tpIsStandardNonSuppressed = (tpBytesNorm === '3E 00');
+  var tpIsStandardSuppressed = (tpBytesNorm === '3E 80');
+  var tpIsCustom = !tpIsStandardNonSuppressed && !tpIsStandardSuppressed;
+  var tpPyList = '[' + tpTokens.map(function(t){return '0x'+t;}).join(', ') + ']';
+  var rawCh = cfg.can_channel || 'Channel1';
+  var chMatch = rawCh.match(/^CAN(\d+)$/i);
+  var ch = chMatch ? ('Channel'+chMatch[1]) : rawCh;
+  var proj = cfg.project_name;
+  var sec1 = cfg.security.level1 || {};
+
+  function hx(v){ return '0x'+String(v).replace(/^0x/i,'').toUpperCase(); }
+  // Parse a write_val string into an array of hex byte strings (no 0x prefix), length n
+  function parseWriteVal(wv, n) {
+    var s = (wv||'00').toString().trim();
+    var parts = s.replace(/0x/gi,'').split(/[\s,]+/).filter(function(p){return p.length>0;});
+    var bytes = parts.map(function(p){return p.toUpperCase().padStart(2,'0');});
+    while(bytes.length < n) bytes.push('00');
+    return bytes.slice(0, n);
+  }
+  function zeros(n){ var a=[]; for(var i=0;i<n;i++)a.push('00'); return a; }
+
+  var caseCount = 0;
+  var body = '';
+
+  function emitSessionSwitchTc(t, reqBytesHex, expBytesHex) {
+    caseCount++;
+    var tcNum = String(caseCount).padStart(3,'0');
+    var cleanName = t.name.replace(/\r?\n/g,' ');
+    body += '\nTC'+tcNum+': '+cleanName+'\n';
+    body += '    [Tags]    '+t.type+(commonTag?'    '+commonTag:'')+'\n';
+    body += '    Run Session Switch Test    '+t.type+'    '+cleanName+'    '+reqBytesHex.join(' ')+'    '+expBytesHex.join(' ')+'    '+caseCount+'\n';
+  }
+
+  function emitTc(t, reqBytesHex, expBytesHex, exact, extraDoc) {
+    caseCount++;
+    var tcNum = String(caseCount).padStart(3,'0');
+    var title = 'TC'+tcNum+': '+t.name.replace(/\r?\n/g,' ');
+    var cleanName = t.name.replace(/\r?\n/g,' ');
+    body += '\n'+title+'\n';
+    if (extraDoc) body += '    [Documentation]    '+extraDoc+'\n';
+    body += '    [Tags]    '+t.type+(commonTag?'    '+commonTag:'')+'\n';
+    var reqStr = reqBytesHex.join(' ');
+    var expStr = (expBytesHex && expBytesHex.length) ? expBytesHex.join(' ') : '${EMPTY}';
+    body += '    Run Standard Diag Test    '+t.type+'    '+cleanName+'    '+reqStr+'    '+expStr+'    '+caseCount+'\n';
+  }
+
+  tcs.forEach(function(t) {
+    switch (t.type) {
+      case 'session_switch':
+        emitSessionSwitchTc(t, ['10', t.session.replace(/^0x/i,'')], ['50', t.session.replace(/^0x/i,'')]);
+        break;
+      case 'read_pos': {
+        var exp = ['62', t.did_hi, t.did_lo];
+        var doc = null;
+        if (t.readback && t.default_value) {
+          var dv = String(t.default_value).trim().toUpperCase().replace(/^0X/, '');
+          if (/^[0-9A-F]{1,2}$/.test(dv)) { exp.push(dv.padStart(2,'0')); doc = 'Checks first data byte equals default value '+hx(dv); }
+        }
+        emitTc(t, ['22', t.did_hi, t.did_lo], exp, false, doc);
+        break; }
+      case 'read_neg':
+        emitTc(t, ['22', t.did_hi, t.did_lo], ['7F','22', (t.nrc||'0x31').replace(/^0x/i,'')], false);
+        break;
+      case 'read_nrc13':
+        emitTc(t, ['22', t.did_hi], ['7F','22','13'], false);
+        break;
+      case 'security_unlock': {
+        caseCount++;
+        var tcNum2 = String(caseCount).padStart(3,'0');
+        var secCfg = cfg.security[t.level] || {};
+        var isImplemented = secCfg.algorithm === 'XOR' && !!secCfg.key_formula;
+        body += '\nTC'+tcNum2+': '+t.name.replace(/\r?\n/g,' ')+'\n';
+        if (isImplemented) {
+          body += '    [Documentation]    Security unlock ('+t.level+') via seed/key formula.\n';
+        } else {
+          body += '    [Documentation]    Security unlock ('+t.level+') — EXE-based, not implemented.\n';
+        }
+        body += '    [Tags]    security_unlock'+(commonTag?'    '+commonTag:'')+'\n';
+        body += '    Log    \\nCAPL TEST '+caseCount+'/__TOTAL__    console=True\n';
+        body += '    Log    CAPL NAME '+t.name.replace(/\r?\n/g,' ')+'    console=True\n';
+        body += '    Log    CAPL CATEGORY security_unlock    console=True\n';
+        body += '    Do Security Unlock    channel_name=${CHANNEL}    level='+t.level+'    name='+t.name.replace(/\r?\n/g,' ')+'\n';
+        body += '    Record Test Result    security_unlock    '+t.name.replace(/\r?\n/g,' ')+'    ${EMPTY}    POS(67 xx) seed/key exchange    AUTO SEC PASS    PASSED    PASS (security unlock)\n';
+        break; }
+      case 'write_no_unlock': {
+        var wb = parseWriteVal(t.write_val, t.total_len-3);
+        emitTc(t, ['2E', t.did_hi, t.did_lo].concat(wb), ['7F','2E','33'], false);
+        break; }
+      case 'write_after_unlock':
+      case 'write_range_min':
+      case 'write_range_max': {
+        var wb2 = parseWriteVal(t.write_val, t.total_len-3);
+        emitTc(t, ['2E', t.did_hi, t.did_lo].concat(wb2), ['6E', t.did_hi, t.did_lo], false);
+        break; }
+      case 'write_out_of_range': {
+        var wbo = parseWriteVal(t.write_val, t.total_len-3);
+        emitTc(t, ['2E', t.did_hi, t.did_lo].concat(wbo), ['7F','2E','31'], false);
+        break; }
+      case 'write_wrong_length':
+        emitTc(t, ['2E', t.did_hi, t.did_lo, '00'], ['7F','2E','13'], false);
+        break;
+      case 'write_wrong_length_long': {
+        var wbl = parseWriteVal(t.write_val, t.total_len-3);
+        emitTc(t, ['2E', t.did_hi, t.did_lo].concat(wbl), ['7F','2E','13'], false);
+        break; }
+      case 'write_not_supported': {
+        var wnsLen = t.data_length || 1;
+        emitTc(t, ['2E', t.did_hi, t.did_lo].concat(zeros(wnsLen)), ['7F','2E','31'], false);
+        break; }
+      case 'ioctrl_returnctl':
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '01'].concat(zeros(t.total_bytes||1)), ['6F', t.did_hi, t.did_lo], false);
+        break;
+      case 'ioctrl_adjust': {
+        var cb = t.ctrl_bytes;
+        var cbHex = (cb && cb.length) ? cb.map(function(x){return (x||0).toString(16).toUpperCase().padStart(2,'0');})
+                                       : [(t.ctrl_val||'00').replace(/[\s]+.*$/,'').toUpperCase().padStart(2,'0')];
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '03'].concat(cbHex), ['6F', t.did_hi, t.did_lo], false);
+        break; }
+      case 'ioctrl_freeze':
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '04'].concat(zeros(t.total_bytes||1)), ['6F', t.did_hi, t.did_lo], false);
+        break;
+      case 'ioctrl_no_unlock': {
+        var cbn = (t.ctrl_bytes||[0,0]).map(function(x){return (x||0).toString(16).toUpperCase().padStart(2,'0');});
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '03'].concat(cbn), ['7F','2F','33'], false);
+        break; }
+      case 'ioctrl_oor': {
+        var cbo = (t.ctrl_bytes||[0,0]).map(function(x){return (x||0).toString(16).toUpperCase().padStart(2,'0');});
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '03'].concat(cbo), ['7F','2F','31'], false);
+        break; }
+      case 'ioctrl_wrong_sess': {
+        var nrcWs = (t.session && t.session.toLowerCase()==='0x01') ? '7F' : '31';
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '01'].concat(zeros(t.total_bytes||1)), ['7F','2F',nrcWs], false);
+        break; }
+      case 'ioctrl_nrc13_short':
+        emitTc(t, ['2F', t.did_hi, t.did_lo], ['7F','2F','13'], false);
+        break;
+      case 'ioctrl_nrc13_long':
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '03','00','00','FF'], ['7F','2F','13'], false);
+        break;
+      case 'ioctrl_nrc31_ctrl':
+        emitTc(t, ['2F', t.did_hi, t.did_lo, '05'].concat(zeros(t.total_bytes||1)), ['7F','2F','31'], false);
+        break;
+      case 'routine_start':
+        emitTc(t, ['31','01', t.did_hi, t.did_lo], ['71','01'], false);
+        break;
+      case 'routine_stop':
+        emitTc(t, ['31','02', t.did_hi, t.did_lo], ['71','02'], false);
+        break;
+      case 'routine_results':
+        emitTc(t, ['31','03', t.did_hi, t.did_lo], ['71','03'], false);
+        break;
+      case 'routine_results_before_start':
+        emitTc(t, ['31','03', t.did_hi, t.did_lo], ['7F','31','24'], false);
+        break;
+      case 'routine_no_unlock':
+        emitTc(t, ['31','01', t.did_hi, t.did_lo], ['7F','31','33'], false);
+        break;
+      case 'routine_wrong_session':
+        emitTc(t, ['31','01', t.did_hi, t.did_lo], ['7F','31','31'], false);
+        break;
+      case 'eol_activate': {
+        var eav = (t.write_val||'01').toUpperCase().padStart(2,'0');
+        emitTc(t, ['2E', t.did_hi, t.did_lo, eav], ['6E', t.did_hi, t.did_lo], false);
+        break; }
+      case 'ecu_reset':
+        emitTc(t, ['11','01'], ['51','01'], false);
+        break;
+    }
+  });
+
+  // Build one real keyword per configured security level that has a formula
+  // (algorithm XOR), plus a stub for EXE-based levels, then a dispatcher.
+  var secLevelNames = Object.keys(cfg.security || {});
+  var secKeywords = '';
+  var dispatchLines = '';
+  secLevelNames.forEach(function(lname){
+    var sec = cfg.security[lname] || {};
+    var seedSf = (sec.seed_request_subfunction||'0x01').replace(/^0x/i,'').toUpperCase().padStart(2,'0');
+    var keySf = (sec.send_key_subfunction||'0x02').replace(/^0x/i,'').toUpperCase().padStart(2,'0');
+    var kwName = 'Do Security Unlock '+lname;
+    dispatchLines += '    Run Keyword If    \'${level}\'==\''+lname+'\'    '+kwName+'    ${channel_name}    ${name}\n';
+    if (sec.algorithm === 'XOR' && sec.key_formula) {
+      // Translate the user's formula: replace the bare word 'seed' with Robot's
+      // inline variable syntax $seed so Evaluate substitutes the actual value.
+      var formula = sec.key_formula.replace(/\bseed\b/g, '$seed');
+      secKeywords += kwName+'\n' +
+        '    [Arguments]    ${channel_name}    ${name}=Security Unlock\n' +
+        '    [Documentation]    Seed/key unlock for \''+lname+'\' via formula.\n' +
+        '    ${req}=    Set Variable    27 '+seedSf+'\n' +
+        '    Log    \\nSECURITY SENT : ${req}    console=True\n' +
+        '    Sleep    200ms\n' +
+        '    ${resp}=    Send Diag Request    ${req}    response_wait_time=5    channel_name=${channel_name}\n' +
+        '    Log    SECURITY RECEIVED : ${resp}    console=True\n' +
+        '    Run Keyword If    ${resp} == []    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    NO RESPONSE (timeout)    FAILED    FAIL No response received for seed request (timeout)\n' +
+        '    Run Keyword If    ${resp} == []    Fail    No response received for seed request (timeout)\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Log    CAPL AUTO SEC FAIL: Seed request rejected NRC ${resp}[2]    console=True\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    NRC ${resp}[2]    FAILED    FAIL Seed request rejected NRC ${resp}[2]\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Fail    Seed request rejected: NRC ${resp}[2] (full response: ${resp})\n' +
+        '    Should Be Equal As Strings    ${resp}[0]    67    msg=Unexpected seed response: ${resp}\n' +
+        '    Should Be Equal As Strings    ${resp}[1]    '+seedSf+'    msg=Unexpected seed subfunction echo: ${resp}\n' +
+        '    ${seed_hex}=    Catenate    SEPARATOR=    ${resp}[2]    ${resp}[3]    ${resp}[4]    ${resp}[5]\n' +
+        '    ${seed}=    Convert To Integer    ${seed_hex}    16\n' +
+        '    Log    SEED VALUE : 0x${seed_hex}    console=True\n' +
+        '    ${key}=    Evaluate    (('+formula+') & 0xFFFFFFFF)\n' +
+        '    ${key_hex}=    Evaluate    "%08X" % $key\n' +
+        '    Log    COMPUTED KEY : 0x${key_hex}    console=True\n' +
+        '    ${key_bytes}=    Evaluate    $key_hex[0:2] + " " + $key_hex[2:4] + " " + $key_hex[4:6] + " " + $key_hex[6:8]\n' +
+        '    ${key_req}=    Set Variable    27 '+keySf+' ${key_bytes}\n' +
+        '    Log    SECURITY SENT : ${key_req}    console=True\n' +
+        '    Sleep    200ms\n' +
+        '    ${key_resp}=    Send Diag Request    ${key_req}    response_wait_time=5    channel_name=${channel_name}\n' +
+        '    Log    SECURITY RECEIVED : ${key_resp}    console=True\n' +
+        '    Run Keyword If    ${key_resp} == []    Record Test Result    security_unlock    ${name}    27 '+keySf+' ${key_bytes}    67 '+keySf+'    NO RESPONSE (timeout)    FAILED    FAIL No response received for key send (timeout)\n' +
+        '    Run Keyword If    ${key_resp} == []    Fail    No response received for key send (timeout)\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Log    CAPL AUTO SEC FAIL: Key send rejected NRC ${key_resp}[2]    console=True\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Record Test Result    security_unlock    ${name}    27 '+keySf+' ${key_bytes}    67 '+keySf+'    NRC ${key_resp}[2]    FAILED    FAIL Key send rejected NRC ${key_resp}[2]\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Fail    Key send rejected: NRC ${key_resp}[2] (full response: ${key_resp})\n' +
+        '    Should Be Equal As Strings    ${key_resp}[0]    67    msg=Unexpected key response: ${key_resp}\n' +
+        '    Should Be Equal As Strings    ${key_resp}[1]    '+keySf+'    msg=Unexpected key subfunction echo: ${key_resp}\n' +
+        '    Log    CAPL AUTO SEC PASS    console=True\n\n';
+    } else if (sec.algorithm === 'EXE' && sec.exe_path) {
+      var rawExePath = sec.exe_path;
+      var exePath = rawExePath.replace(/\\/g, '\\\\');
+      var lastSepIdx = Math.max(rawExePath.lastIndexOf('\\'), rawExePath.lastIndexOf('/'));
+      var exeDir = lastSepIdx >= 0 ? rawExePath.slice(0, lastSepIdx+1) : '.\\';
+      var exeDirEscaped = exeDir.replace(/\\/g, '\\\\');
+      secKeywords += kwName+'\n' +
+        '    [Arguments]    ${channel_name}    ${name}=Security Unlock\n' +
+        '    [Documentation]    EXE-based unlock for \''+lname+'\' via '+exePath+'.\n' +
+        '    ${req}=    Set Variable    27 '+seedSf+'\n' +
+        '    Log    \\nSECURITY SENT : ${req}    console=True\n' +
+        '    Sleep    200ms\n' +
+        '    ${resp}=    Send Diag Request    ${req}    response_wait_time=5    channel_name=${channel_name}\n' +
+        '    Log    SECURITY RECEIVED : ${resp}    console=True\n' +
+        '    Run Keyword If    ${resp} == []    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    NO RESPONSE (timeout)    FAILED    FAIL No response received for seed request (timeout)\n' +
+        '    Run Keyword If    ${resp} == []    Fail    No response received for seed request (timeout)\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Log    CAPL AUTO SEC FAIL: Seed request rejected NRC ${resp}[2]    console=True\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    NRC ${resp}[2]    FAILED    FAIL Seed request rejected NRC ${resp}[2]\n' +
+        '    Run Keyword If    \'${resp}[0]\'==\'7F\'    Fail    Seed request rejected: NRC ${resp}[2] (full response: ${resp})\n' +
+        '    Should Be Equal As Strings    ${resp}[0]    67    msg=Unexpected seed response: ${resp}\n' +
+        '    Should Be Equal As Strings    ${resp}[1]    '+seedSf+'    msg=Unexpected seed subfunction echo: ${resp}\n' +
+        '    ${seed_hex}=    Catenate    SEPARATOR=    ${resp}[2]    ${resp}[3]    ${resp}[4]    ${resp}[5]\n' +
+        '    ${seed_hex_lc}=    Evaluate    $seed_hex.lower()\n' +
+        '    Log    SEED VALUE : 0x${seed_hex}    console=True\n' +
+        '    ${timestamp}=    Evaluate    str(int(__import__(\'time\').time() * 1000))\n' +
+        '    ${bin_path}=    Set Variable    '+exeDirEscaped+'key_${seed_hex_lc}_${timestamp}.bin\n' +
+        '    Log    SECURITY EXE : '+exePath+' key_from_seed ${seed_hex_lc} ${bin_path}    console=True\n' +
+        '    ${result}=    Run Process    '+exePath+'    key_from_seed    ${seed_hex_lc}    ${bin_path}    shell=True    timeout=30s\n' +
+        '    Run Keyword If    ${result.rc} != 0    Log    CAPL AUTO SEC FAIL: Keygen EXE failed (rc=${result.rc})    console=True\n' +
+        '    Run Keyword If    ${result.rc} != 0    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    Keygen EXE failed rc=${result.rc}    FAILED    FAIL Keygen EXE failed rc=${result.rc}\n' +
+        '    Should Be Equal As Integers    ${result.rc}    0    msg=Keygen EXE failed (rc=${result.rc}): stdout=${result.stdout} stderr=${result.stderr}\n' +
+        '    File Should Exist    ${bin_path}    msg=Keygen EXE did not produce output file: ${bin_path}\n' +
+        '    ${frame_bytes}=    Evaluate    list(open(r\'${bin_path}\', \'rb\').read())\n' +
+        '    Length Should Be    ${frame_bytes}    8    msg=Expected an 8-byte key frame from EXE, got: ${frame_bytes}\n' +
+        '    ${key_bytes}=    Evaluate    "%02X %02X %02X %02X" % ($frame_bytes[3], $frame_bytes[4], $frame_bytes[5], $frame_bytes[6])\n' +
+        '    ${key_req}=    Set Variable    27 '+keySf+' ${key_bytes}\n' +
+        '    Log    COMPUTED KEY : ${key_bytes}    console=True\n' +
+        '    Log    SECURITY SENT : ${key_req}    console=True\n' +
+        '    Sleep    200ms\n' +
+        '    ${key_resp}=    Send Diag Request    ${key_req}    response_wait_time=5    channel_name=${channel_name}\n' +
+        '    Log    SECURITY RECEIVED : ${key_resp}    console=True\n' +
+        '    Run Keyword If    ${key_resp} == []    Record Test Result    security_unlock    ${name}    27 '+keySf+' ${key_bytes}    67 '+keySf+'    NO RESPONSE (timeout)    FAILED    FAIL No response received for key send (timeout)\n' +
+        '    Run Keyword If    ${key_resp} == []    Fail    No response received for key send (timeout)\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Log    CAPL AUTO SEC FAIL: Key send rejected NRC ${key_resp}[2]    console=True\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Record Test Result    security_unlock    ${name}    27 '+keySf+' ${key_bytes}    67 '+keySf+'    NRC ${key_resp}[2]    FAILED    FAIL Key send rejected NRC ${key_resp}[2]\n' +
+        '    Run Keyword If    \'${key_resp}[0]\'==\'7F\'    Fail    Key send rejected: NRC ${key_resp}[2] (full response: ${key_resp})\n' +
+        '    Should Be Equal As Strings    ${key_resp}[0]    67    msg=Unexpected key response: ${key_resp}\n' +
+        '    Should Be Equal As Strings    ${key_resp}[1]    '+keySf+'    msg=Unexpected key subfunction echo: ${key_resp}\n' +
+        '    Log    CAPL AUTO SEC PASS    console=True\n\n';
+    } else {
+      secKeywords += kwName+'\n' +
+        '    [Arguments]    ${channel_name}    ${name}=Security Unlock\n' +
+        '    [Documentation]    NOT IMPLEMENTED — \''+lname+'\' has no formula and no EXE path configured.\n' +
+        '    Log    CAPL AUTO SEC FAIL: no algorithm configured for level \''+lname+'\'    console=True\n' +
+        '    Record Test Result    security_unlock    ${name}    ${EMPTY}    POS(67 xx) seed/key exchange    Not implemented    FAILED    FAIL Not implemented for level \''+lname+'\'\n' +
+        '    Fail    Implement Do Security Unlock for level \''+lname+'\' (no algorithm configured)\n\n';
+    }
+  });
+
+  var settings =
+    '*** Settings ***\n' +
+    'Documentation     Auto-generated UDS test suite for '+proj+' | Total TCs: '+caseCount+'\n' +
+    'Library           Collections\n' +
+    'Library           String\n' +
+    'Library           Process\n' +
+    'Library           OperatingSystem\n' +
+    'Library           Robo_FIT/GenericLibraries/GenericOpLibs/RobofitRestbus/CANRestBusHandler.py\n' +
+    'Library           '+reporterPath+'\n' +
+    'Suite Setup       Setup Suite\n' +
+    'Suite Teardown    Teardown Suite\n\n' +
+    '*** Variables ***\n' +
+    '${CHANNEL}        '+(ch||'CH1')+'\n' +
+    '${TX_ID}          '+(cfg.tx_id||'0x7F6')+'\n' +
+    '${RX_ID}          '+(cfg.rx_id||'0x7FE')+'\n' +
+    '${TP_INTERVAL}    1\n' +
+    '${RESPONSE_WAIT}  '+responseWait+'\n\n' +
+    '*** Keywords ***\n' +
+    'Setup Suite\n' +
+    '    Initialize Can    channel_name=${CHANNEL}\n' +
+    '    Initialize Diag    channel_name=${CHANNEL}    rx_id=${RX_ID}    tx_id=${TX_ID}\n' +
+    (tpIsCustom ?
+      '    Log    Tester Present: sending '+tpBytesNorm+' (custom, raw periodic send) every ${TP_INTERVAL}s    console=True\n' +
+      '    Send Raw Can Message Periodic    ${{int(\'${TX_ID}\', 16)}}    ${{'+tpPyList+'}}    channel_name=${CHANNEL}    periodic_time=${{${TP_INTERVAL} * 1000}}\n\n'
+    :
+      '    Log    Tester Present: sending '+tpBytesNorm+' ('+(tpIsStandardSuppressed?'suppressed':'non-suppressed')+') every ${TP_INTERVAL}s, matching CAPL cadence    console=True\n' +
+      '    Start Tester Present    channel_name=${CHANNEL}    suppressed=${'+(tpIsStandardSuppressed?'True':'False')+'}    interval=${TP_INTERVAL}\n\n'
+    ) +
+    'Teardown Suite\n' +
+    (tpIsCustom ?
+      '    Stop Raw Can Message    ${{int(\'${TX_ID}\', 16)}}\n'
+    :
+      '    Stop Tester Present    channel_name=${CHANNEL}\n'
+    ) +
+    '    Deinitialize Can    channel_name=${CHANNEL}\n' +
+    '    Generate Nexdiag Report    output_dir='+(reportOutDir||'${OUTPUT_DIR}')+'    file_name='+proj+'\n\n' +
+    'Send Diag With Retry\n' +
+    '    [Documentation]    Sends a diag request, retrying only on an empty response.\n' +
+    '    [Timeout]    '+tpTimeoutSeconds+'s\n' +
+    '    [Arguments]    ${data}    ${expected}    ${channel}\n' +
+    '    FOR    ${i}    IN RANGE    '+retryAttempts+'\n' +
+    '        ${resp}=    Send Diag Request    ${data}    response_wait_time=${RESPONSE_WAIT}    channel_name=${channel}\n' +
+    '        ${resp_str}=    Catenate    SEPARATOR=${SPACE}    @{resp}\n' +
+    '        ${ok}=    Run Keyword And Return Status    Should Contain    ${resp_str}    ${expected}\n' +
+    '        Exit For Loop If    ${ok}\n' +
+    '        Exit For Loop If    \'${resp_str}\'!=\'\'\n' +
+    '        Run Keyword If    ${i} < '+(retryAttempts-1)+'    Sleep    '+retryDelay+'ms\n' +
+    '    END\n' +
+    '    [Return]    ${resp}    ${resp_str}    ${ok}\n\n' +
+    'Run Standard Diag Test\n' +
+    '    [Documentation]    Sends a standard diag request and records the result.\n' +
+    '    [Arguments]    ${category}    ${name}    ${request}    ${expected}    ${index}\n' +
+    (verboseLog ?
+      '    Log    \\nCAPL TEST ${index}/__TOTAL__    console=True\n' +
+      '    Log    CAPL NAME ${name}    console=True\n' +
+      '    Log    CAPL CATEGORY ${category}    console=True\n' +
+      '    Log    CAPL REQ ${request}    console=True\n' : '') +
+    '    IF    \'${expected}\'==\'\'\n' +
+    '        ${resp}=    Send Diag Request    ${request}    response_wait_time=${RESPONSE_WAIT}    channel_name=${CHANNEL}\n' +
+    '        ${resp_str}=    Catenate    SEPARATOR=${SPACE}    @{resp}\n' +
+    (verboseLog ? '        Log    CAPL RSP ${resp_str}    console=True\n' : '') +
+    '        Record Test Result    ${category}    ${name}    ${request}    ${EMPTY}    ${resp_str}    PASSED    PASS\n' +
+    '    ELSE\n' +
+    '        ${resp}    ${resp_str}    ${status}=    Send Diag With Retry    ${request}    ${expected}    ${CHANNEL}\n' +
+    (verboseLog ?
+      '        Log    CAPL RSP ${resp_str}    console=True\n' +
+      '        Log    CAPL EXP ${expected}    console=True\n' : '') +
+    '        ${status_str}=    Set Variable If    ${status}    PASSED    FAILED\n' +
+    '        ${result_msg}=    Set Variable If    ${status}    PASS    FAIL Expected ${expected} Got ${resp_str} (after retries)\n' +
+    (verboseLog ?
+      '        Run Keyword If    ${status}    Log    CAPL RESULT PASS    console=True\n' +
+      '        ...    ELSE    Log    CAPL RESULT FAIL Expected ${expected} Got ${resp_str} (after retries)    console=True\n' : '') +
+    '        Record Test Result    ${category}    ${name}    ${request}    ${expected}    ${resp_str}    ${status_str}    ${result_msg}\n' +
+    '        Should Be True    ${status}    msg=Expected ${expected} but got ${resp_str} (after retries)\n' +
+    '    END\n\n' +
+    'Run Session Switch Test\n' +
+    '    [Documentation]    Sends a session-switch request and records the result.\n' +
+    '    [Arguments]    ${category}    ${name}    ${request}    ${expected}    ${index}\n' +
+    (verboseLog ?
+      '    Log    \\nCAPL TEST ${index}/__TOTAL__    console=True\n' +
+      '    Log    CAPL NAME ${name}    console=True\n' +
+      '    Log    CAPL CATEGORY ${category}    console=True\n' +
+      '    Log    CAPL REQ ${request}    console=True\n' : '') +
+    '    ${resp}    ${resp_str}    ${status}=    Send Diag With Retry    ${request}    ${expected}    ${CHANNEL}\n' +
+    (verboseLog ?
+      '    Log    CAPL RSP ${resp_str}    console=True\n' +
+      '    Log    CAPL EXP ${expected}    console=True\n' : '') +
+    '    ${status_str}=    Set Variable If    ${status}    PASSED    FAILED\n' +
+    '    ${result_msg}=    Set Variable If    ${status}    PASS    FAIL Expected ${expected} Got ${resp_str} (after retries)\n' +
+    (verboseLog ?
+      '    Run Keyword If    ${status}    Log    CAPL RESULT PASS    console=True\n' +
+      '    ...    ELSE    Log    CAPL RESULT FAIL Expected ${expected} Got ${resp_str} (after retries)    console=True\n' : '') +
+    '    Record Test Result    ${category}    ${name}    ${request}    ${expected}    ${resp_str}    ${status_str}    ${result_msg}\n' +
+    '    Should Be True    ${status}    msg=Expected ${expected} but got ${resp_str} (after retries)\n\n' +
+    'Do Security Unlock\n' +
+    '    [Arguments]    ${channel_name}    ${level}    ${name}=Security Unlock\n' +
+    '    [Documentation]    Dispatches to the seed/key exchange for the given security level.\n' +
+    dispatchLines + '\n' +
+    secKeywords;
+
+  return (settings + '*** Test Cases ***\n' + body).replace(/__TOTAL__/g, String(caseCount));
+}
+
+// ─────────────────────────────────────────────
 // Export page
 // ─────────────────────────────────────────────
 var cachedCfg = null;
 var cachedTcs = null;
 var cachedCapl = null;
+var cachedRobot = null;
 
 
 // ── Export ────────────────────────────────────────────────
@@ -3006,6 +3463,7 @@ function buildExp(){
   CC=buildConfig();
   CT=buildTestcases(CC);
   CK=generateCapl(CC,CT);
+  CR=generateRobot(CC,CT);
   // Debug
   CC.dids.forEach(function(d,i){
     console.log('[NexDiag] DID['+i+']='+d.did+' write_support='+d.write_support+' ws='+JSON.stringify(d.write_sessions)+' min='+d.min_value+' max='+d.max_value);
@@ -3090,6 +3548,8 @@ function buildExp(){
   CT.forEach(function(t){ln.push('case '+t.id+': // '+t.name);});
   document.getElementById('outPre').textContent=ln.join('\n');
   document.getElementById('outCapl').textContent=CK;
+  var elRobot=document.getElementById('outRobot');
+  if(elRobot) elRobot.textContent=CR;
 }
 function mks(l,v,c){return '<div class="stat"><div class="sl">'+l+'</div><div class="sv '+c+'">'+v+'</div></div>';}
 function stab(n,el){
@@ -3097,9 +3557,53 @@ function stab(n,el){
   document.querySelectorAll('.tpane').forEach(function(t){t.classList.remove('on');});
   el.classList.add('on');document.getElementById('tp'+n).classList.add('on');
 }
+function getRobotOpts(){
+  return {
+    commonTag: (document.getElementById('robotCommonTag').value||'').trim(),
+    reporterPath: (document.getElementById('robotReporterPath').value||'').trim(),
+    reportOutDir: (document.getElementById('robotReportOutDir').value||'').trim(),
+    responseWait: (document.getElementById('robotResponseWait').value||'1').trim(),
+    verboseLog: document.getElementById('robotVerboseLog').checked,
+    retryAttempts: (document.getElementById('robotRetryAttempts').value||'2').trim(),
+    retryDelay: (document.getElementById('robotRetryDelay').value||'300').trim(),
+    testerPresentBytes: (document.getElementById('robotTesterPresentBytes').value||'3E 00').trim()
+  };
+}
+function validateRobotOpts(){
+  var o = getRobotOpts();
+  if(!o.reporterPath){
+    toast('Enter the NexDiagReporter.py path before generating the .robot file','err');
+    document.getElementById('robotReporterPath').focus();
+    return null;
+  }
+  if(!o.reportOutDir){
+    toast('Enter the report output directory before generating the .robot file','err');
+    document.getElementById('robotReportOutDir').focus();
+    return null;
+  }
+  return o;
+}
+function stabRobot(el){
+  var o = validateRobotOpts();
+  if(!o) return;
+  if(!CC) buildExp();
+  CR = generateRobot(CC, CT, o);
+  document.getElementById('outRobot').textContent = CR;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  document.querySelectorAll('.tpane').forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');document.getElementById('tprobot').classList.add('on');
+}
 function cpOut(id){navigator.clipboard.writeText(document.getElementById(id).textContent).then(function(){toast('Copied!','ok');});}
 function dlJson(){if(!CC)buildExp();dl(JSON.stringify(CC,null,2),CC.project_name+'_config.json','application/json');}
 function dlCapl(){if(!CK)buildExp();dl(CK,CC.project_name+'_UDS_Tests.can','text/plain');toast('Downloaded: '+CC.project_name,'ok');}
+function dlRobot(){
+  var o = validateRobotOpts();
+  if(!o) return;
+  if(!CC) buildExp();
+  CR = generateRobot(CC, CT, o);
+  dl(CR,CC.project_name+'_UDS_Tests.robot','text/plain');
+  toast('Downloaded: '+CC.project_name+' (.robot)','ok');
+}
 function dl(c,f,m){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:m}));a.download=f;a.click();}
 function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(t._t);t._t=setTimeout(function(){t.className='toast';},2800);}
 
