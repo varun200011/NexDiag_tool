@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NexDiag — CAPL UDS Generator</title>
+<title>NexDiag — CAPL & Robot Framework UDS Generator</title>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Special+Elite&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ── TOKENS ──────────────────────────────────────────────── */
@@ -438,7 +438,7 @@ footer {
   </div>
   <div class="nav-right">
     <a class="btn-nav-ghost" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
-    <a class="btn-nav-fill" href="generator.html">Launch Generator</a>
+    <a class="btn-nav-fill" href="generator.html">Launch Generator <span style="font-size:10px;opacity:.75;margin-left:4px">(.CAN + .robot)</span></a>
   </div>
 </nav>
 
@@ -447,7 +447,7 @@ footer {
   <div class="hero-inner">
     <div>
       <h1 class="hero-h1">NexDiag<br><em>Generator</em></h1>
-      <p class="hero-sub">Generate compile-ready CAPL UDS test suites from your SRD sheet — covering all sessions, NRCs, EOL entry, and ISO-TP writes.</p>
+      <p class="hero-sub">Generate compile-ready CAPL and Robot Framework UDS test suites from your SRD sheet or CANdela .cdd file — covering all sessions, NRCs, EOL entry, and ISO-TP writes.</p>
       <div class="hero-ctas">
         <a class="btn-primary" href="generator.html">Launch Generator →</a>
         <a class="btn-secondary" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
@@ -462,9 +462,9 @@ footer {
         <div class="step-row"><span class="step-n">01</span><span class="step-txt">Project setup</span><span class="step-badge">Done</span></div>
         <div class="step-row"><span class="step-n">02</span><span class="step-txt">Session config</span><span class="step-badge">Done</span></div>
         <div class="step-row"><span class="step-n">03</span><span class="step-txt">Security levels</span><span class="step-badge">Done</span></div>
-        <div class="step-row active"><span class="step-n">04</span><span class="step-txt">DID table — 45 DIDs</span><span class="step-badge">Active</span></div>
+        <div class="step-row active"><span class="step-n">04</span><span class="step-txt">DID table — Excel or .cdd</span><span class="step-badge">Active</span></div>
         <div class="step-row"><span class="step-n">05</span><span class="step-txt">Column mapper</span><span class="step-badge">Pending</span></div>
-        <div class="step-row"><span class="step-n">06</span><span class="step-txt">Generate .CAN</span><span class="step-badge">Pending</span></div>
+        <div class="step-row"><span class="step-n">06</span><span class="step-txt">Generate .CAN / .robot</span><span class="step-badge">Pending</span></div>
         <div class="step-row"><span class="step-n">07</span><span class="step-txt">Test report</span><span class="step-badge">Pending</span></div>
       </div>
     </div>
@@ -483,8 +483,8 @@ footer {
 <section id="workflow">
   <div class="section-inner">
     <div class="section-eyebrow">How it works</div>
-    <h2 class="section-h2">Seven steps from SRD<br>to compile-ready .CAN</h2>
-    <p class="section-sub">Configure your project once. Map your SRD columns. Download a CAPL test suite ready for CANoe.</p>
+    <h2 class="section-h2">Seven steps from SRD<br>to compile-ready test suite</h2>
+    <p class="section-sub">Configure your project once. Import your SRD Excel or CANdela .cdd file. Download a CAPL or Robot Framework test suite ready to run.</p>
     <div class="workflow-grid reveal">
       <div class="wstep">
         <div class="ws-n">01</div>
@@ -508,8 +508,8 @@ footer {
         <div class="ws-n">04</div>
         <div class="ws-icon">📋</div>
         <div class="ws-title">DID Table</div>
-        <div class="ws-desc">Manual entry or Excel import. Service type, sessions, range, bitmaps.</div>
-        <span class="ws-badge">Excel import</span>
+        <div class="ws-desc">Manual entry, Excel import, or CANdela .cdd import (self-describing, no column mapping needed). Service type, sessions, range, bitmaps.</div>
+        <span class="ws-badge">Excel or .cdd import</span>
       </div>
       <div class="wstep">
         <div class="ws-n">05</div>
@@ -521,14 +521,14 @@ footer {
         <div class="ws-n">06</div>
         <div class="ws-icon">⚡</div>
         <div class="ws-title">Generate</div>
-        <div class="ws-desc">One click generates the complete .CAN file. Download and run in CANoe.</div>
-        <span class="ws-badge">Download .CAN</span>
+        <div class="ws-desc">One click generates the complete .CAN file and a matching Robot Framework .robot suite. Download and run in CANoe or Robot Framework.</div>
+        <span class="ws-badge">.CAN + .robot</span>
       </div>
       <div class="wstep highlight">
         <div class="ws-n">07</div>
         <div class="ws-icon">📊</div>
         <div class="ws-title">Report</div>
-        <div class="ws-desc">Drop CANoe Write Window log. Interactive charts, failure analysis, PDF export.</div>
+        <div class="ws-desc">Drop a CANoe Write Window log into the Report Tool, or let the .robot suite generate the same dashboard automatically via NexDiagReporter.py — no upload needed.</div>
         <span class="ws-badge">Report tool →</span>
       </div>
     </div>
@@ -564,8 +564,13 @@ footer {
       </div>
       <div class="feat">
         <div class="feat-label">SRD</div>
-        <div class="feat-title">Excel Import</div>
-        <div class="feat-desc">Upload SRD Excel. Column mapper auto-detects I/O Control, Range, Description. Strikethrough rows excluded via openpyxl pre-processing.</div>
+        <div class="feat-title">Excel or CDD Import</div>
+        <div class="feat-desc">Upload SRD Excel with column mapper auto-detecting I/O Control, Range, Description — or a CANdela .cdd file, parsed directly with no mapping step. Strikethrough rows excluded via openpyxl pre-processing.</div>
+      </div>
+      <div class="feat">
+        <div class="feat-label">Robot</div>
+        <div class="feat-title">Robot Framework Output</div>
+        <div class="feat-desc">Same session, security, NRC, and multi-frame logic as the CAPL suite, generated as native Robot Framework test cases against your CANRestBusHandler keywords — plus an auto-generated NexDiag-style HTML report via NexDiagReporter.py, no browser upload needed.</div>
       </div>
       <div class="feat">
         <div class="feat-label">Security</div>
@@ -634,8 +639,8 @@ footer {
   <div class="cta-inner">
     <div>
       <div class="section-eyebrow">Get started</div>
-      <h2 class="cta-h2">From SRD<br>to <em>.CAN file</em><br>in minutes</h2>
-      <p class="cta-sub">Open the generator, import your Excel, configure sessions and security, and download a compile-ready CAPL test suite.</p>
+      <h2 class="cta-h2">From SRD<br>to <em>.CAN or .robot</em><br>in minutes</h2>
+      <p class="cta-sub">Open the generator, import your Excel or CANdela .cdd file, configure sessions and security, and download a compile-ready CAPL or Robot Framework test suite.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn-primary" href="generator.html">Open Generator →</a>
         <a class="btn-secondary" href="https://varun200011.github.io/diva-capl-html-report/" target="_blank">Report Tool</a>
@@ -659,8 +664,8 @@ footer {
       <div class="cta-step">
         <div class="cta-step-n">3</div>
         <div>
-          <div class="cta-step-title">Download &amp; compile</div>
-          <div class="cta-step-desc">Get a .CAN file ready to compile in CANoe. Run all TCs in one click.</div>
+          <div class="cta-step-title">Download &amp; run</div>
+          <div class="cta-step-desc">Get a .CAN file ready to compile in CANoe, or a .robot suite ready for Robot Framework. Run all TCs in one click.</div>
         </div>
       </div>
       <div class="cta-step">
